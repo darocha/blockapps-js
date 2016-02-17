@@ -171,6 +171,15 @@ function setTypedefs(typesDef, varsDef) {
     }
 }
 
+function entriesToList(entries) {
+    var result = [];
+    for (var entry in entries) {
+        var entryDef = entries[entry];
+        result[entryDef["index"]] = entryDef;
+    }
+    return result;
+}
+
 module.exports = {
     readInput: readInput,
     dynamicDef : dynamicDef,
@@ -179,5 +188,6 @@ module.exports = {
     encodingLength: encodingLength,
     fitObjectStart: fitObjectStart,
     objectSize: objectSize,
-    setTypedefs: setTypedefs
+    setTypedefs: setTypedefs,
+    entriesToList: entriesToList
 }

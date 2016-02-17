@@ -101,10 +101,7 @@ Solidity.prototype = {
     "newContract" : function (privkey, txParams) { // Backwards-compatibility
         return this.construct().txParams(txParams).callFrom(privkey);
     },
-    "attach": function() {
-        return Solidity.attach.bind(null, this);
-    },
-    "toJSON": function() {
+    "detach": function() {
         var copy = {};
         var orig = this;
         ["bin", "xabi", "account"].forEach(function(p) {
@@ -113,10 +110,9 @@ Solidity.prototype = {
         return copy;
     }
 };
-Solidity.attach = attach;
-Solidity.fromJSON = function(x) {
-    return assignType(Solidity, JSON.parse(x));
-};
+Solidity.attach = function(x) {
+    return attach(assignType(Solidity, JSON.parse(x)));
+}
 
 function constrFrom(privkey) {
     return this.send(privkey).
@@ -150,6 +146,15 @@ function attach(solObj) {
             value: solMethod(types, funcs[func], func).bind(addr),
             enumerable: true
         });
+        state[func].toJSON = function() {
+            var args = util.entriesToList(funcs[func].args).
+                map(function(arg) { return arg.type; }).
+                join(", ");
+            var vals = util.entriesToList(funcs[func].vals).
+                map(function(val) { return val.type; }).
+                join(", ");
+            return "function (" + args + ") returns (" + vals + ")";
+        };
     }
 
     var storage = new Storage(addr);
@@ -178,7 +183,7 @@ function makeSolObject(typeDefs, varDef, storage) {
         var keyType = varDef["key"];
         var valType = varDef["value"];
         
-        return function(x) {
+        var result = function(x) {
             try {
                 var arg = util.readInput(typeDefs, keyType, x);
                 var keyBytes;
@@ -212,6 +217,10 @@ function makeSolObject(typeDefs, varDef, storage) {
                 errors.pushTag("Mapping")(e);
             }
         };
+        result.toJSON = function() {
+            return "mapping (" + keyType.type + " => " + valType.type + ")";
+        }
+        return result;
     case "Array":
         return Promise.try(function() {
             if (varDef.dynamic) {
