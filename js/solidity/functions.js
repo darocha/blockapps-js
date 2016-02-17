@@ -9,7 +9,7 @@ function solMethod(typesDef, funcDef, name) {
     util.setTypedefs(typesDef, vals);
     var args = funcDef["args"];
     util.setTypedefs(typesDef, args);
-    var argsList = entriesToList(args);
+    var argsList = util.entriesToList(args);
     var solObj = this;
 
     return function() {
@@ -241,7 +241,7 @@ function decodeReturn(valsDef, x) {
             after = function(arr) {
                 var entries;
                 if ("entries" in valDef) {
-                    entries = entriesToList(valDef["entries"]);
+                    entries = util.entriesToList(valDef["entries"]);
                 }
                 else {
                     entries = [];
@@ -264,15 +264,6 @@ function decodeReturn(valsDef, x) {
         return after(result);
     }
     return go(valsDef);
-}
-
-function entriesToList(entries) {
-    var result = [];
-    for (var entry in entries) {
-        var entryDef = entries[entry];
-        result[entryDef["index"]] = entryDef;
-    }
-    return result;
 }
 
 module.exports = solMethod;
