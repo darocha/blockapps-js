@@ -6,10 +6,10 @@
 [![Coverage Status](https://coveralls.io/repos/blockapps/blockapps-js/badge.svg?branch=master&service=github)](https://coveralls.io/github/blockapps/blockapps-js?branch=master) [![npm version](https://badge.fury.io/js/blockapps-js.svg)](https://badge.fury.io/js/blockapps-js)
 
 blockapps-js is a library that exposes a number of functions for
-interacting with the Blockchain via the BlockApps API.  Currently it
-has strong support for compiling Solidity code, creating the resulting
-contract, and querying its variables or calling its functions through
-Javascript code.
+interacting with the Blockchain via the BlockApps API.  It has strong
+support for compiling Solidity code, creating the resulting contract,
+and querying its variables or calling its functions through Javascript
+code.
 
 ## Contents
 - [Installation](#installation)
@@ -59,6 +59,8 @@ Javascript code.
     - [Unsent transactions](#unsent-transactions)
     - [Calling](#calling)
     - [Return value](#return-value)
+  - [Changes](#changes)
+      - [In v2.3.0](#inv230)
 
 ## Installation
 
@@ -147,11 +149,12 @@ var Solidity = require('blockapps-js').Solidity
 
 var code = "contract C { int x = -2; }"; // For instance
 
-Solidity(code).then(function(solObj) {
-  // solObj.vmCode is the compiled code.  You could submit it directly with
+Solidity(code).
+then(function(solObj) {
+  // solObj.bin is the compiled code.  You could submit it directly with
   // a Transaction, but there is a better way.
 
-  // solObj.symTab has more information than you could possibly want about the
+  // solObj.xabi has more information than you could possibly want about the
   // global variables and functions defined in the code.
 
   // solObj.name is the name of the contrat, i.e. "C"
@@ -167,10 +170,15 @@ Solidity(code).then(function(solObj) {
 ```js
 var Solidity = require('blockapps-js').Solidity
 
-var code = "contract C { int x = -2; }"; // For instance
+var code = "contract C { int x; function C(int i) {x = i} }"; // For instance
 var privkey = "1dd885a423f4e212740f116afa66d40aafdbb3a381079150371801871d9ea281";
 
-Solidity(code).newContract(privkey, {"value": 100}).then(function(contract) {
+Solidity(code).
+then(function(solObj) {
+    // Call the constructor with a parameter
+    return solObj.construct(-2).txParams({"value": 100}).callFrom(privkey);
+}).
+then(function(contract) {
   contract.account.balance.equals(100); // You shouldn't use == with big-integers
   contract.state.x == -2; // If you do use ==, the big-integer is downcast.
 });
@@ -197,21 +205,24 @@ var code = 'contract C {                        \n\
 }';
 
 var privkey = "1dd885a423f4e212740f116afa66d40aafdbb3a381079150371801871d9ea281";
+var contract; // Set after compilation
 
-Solidity(code).newContract(privkey).then(function(contract) {
-  // This sets up a call to the code's "knock" method;
-  // The account owned by this private key pays the execution fees.
-  var knock = function(n) {
+// This sets up a call to the code's "knock" method;
+// The account owned by this private key pays the execution fees.
+function knock(n) {
     return contract.state.knock(n).callFrom(privkey);
-  };
-  
-  Promise.map([0,1,2,3], knock).then(function(replies) {
+}
+
+// An example of proper promise chaining style
+Solidity(code).call("construct").call("callFrom", privkey).
+then(function(c) { contract = c; }).
+thenReturn([0,1,2,3]).
+map(knock).
+then(function(replies) {
     replies[0] == "I couldn't hear that!";
     replies[1] == "Okay, okay!";
     // etc.
-  }).then(function() {
     contract.state.knocks == 6; 
-  });
 });
 ```
 
@@ -238,26 +249,28 @@ var code = 'contract C {                        \n\
 
 var privkey = "1dd885a423f4e212740f116afa66d40aafdbb3a381079150371801871d9ea281";
 
-Solidity(code).newContract(privkey).then(function(contract) {
-  // This time, we don't actually call the Solidity method yet.
-  // However, we should take care to specify gas limits individually.
-  // If this limit seems high...you never know.  But it should not
-  // be so high that paying it in the middle of a VM run would
-  // cause an out-of-gas exception.
-  function knock(n) {
+var contract;
+// This time, we don't actually call the Solidity method yet.
+// However, we should take care to specify gas limits individually.
+// If this limit seems high...you never know.  But it should not
+// be so high that paying it in the middle of a VM run would
+// cause an out-of-gas exception.
+function knock(n) {
     return contract.state.knock(n).txParams({gasLimit: 100000});
-  }
+}
 
-  // This does all four calls in a single transaction, which saves a
-  // lot of gas and time.
-  MultiTX([0,1,2,3].map(knock)).multiSend(privkey)
-  .then(function(replies) {
+Solidity(code).call("construct").call("callFrom", privkey).
+then(function(c) {contract = c;}).
+thenReturn([0,1,2,3]).
+map(knock).
+then(MultiTX).
+call("multiSend", privkey). // This does all four calls in a single
+                            // transaction, which saves a lot of gas and time.
+then(function(replies) {
     replies[0] == "I couldn't hear that!";
     replies[1] == "Okay, okay!";
     // etc.
-  }).then(function() {
     contract.state.knocks == 6; 
-  });
 });
 ```
 
@@ -272,21 +285,24 @@ To handle this, the function `blockapps.setProfile` is provided with
 several default profiles.  Its usage is:
 
 ```js
-setProfile(<profile name>, <optional version>)
+setProfile(<profile name>, <node URL>)
 ```
 
-where `<profile name>` is any of the keys of `setProfile.profiles`, currently one of:
+where `<profile name>` is any of the keys of `setProfile.profiles`,
+currently one of:
 
- - "strato-dev": connects to the sandbox
-   `http://strato-dev.blockapps.net` with very permissive defaults.
+ - "strato-dev": Intended for connecting to a BlockApps STRATO
+   sandbox, this has very permissive defaults.
    
- - "strato-live": connects to the live network
-   `http://strato-live.blockapps.net` with reasonable defaults given
-   those of the official Ethereum clients.
+ - "ethereum-frontier": Intended for connecting to a node on the live
+   Ethereum network with reasonable defaults given those of the
+   official Ethereum clients.
 
-The `<optional version>`, if present, must be of the form `n.m`, for
-example, `1.0`, and indicates which version of the BlockApps routes is
-requested.  Currently `1.0` is the only one.
+In the present version of `blockapps-js`, the library uses the
+BlockApps API routes version 1.1, which is incompatible with version
+1.0 in the `/solc` and `/extabi` routes.  Therefore, this library
+*will not work* with STRATO nodes not exposing this version of the
+routes.
 
 ### The `ethbase` submodule
 
@@ -397,8 +413,8 @@ routes for querying the Ethereum "database".  All of them return
 Promises, since they must perform an asychronous request.  These
 requests are made to the BlockApps server and path at:
 
- - `query.apiPrefix`: by default, `/eth/v1.0`.
- - `query.serverURI`: by default, `http://strato-dev.blockapps.net`.
+ - `query.apiPrefix`: by default, `/eth/v1.1`.
+ - `query.serverURI`: by default, `http://build.blockapps.net`.
 
 Some of the routes (namely, *faucet* and *submitTransaction*) poll the
 server for their results, with the following parameters:
@@ -410,23 +426,61 @@ The following "routes" are member functions of `blockapps.routes`:
 
 #### `solc(code)`
 
-Takes Solidity source code and returns a Promise resolving to an
-object `{vmCode, symTab, name}`, where `vmCode` is the compiled
-Ethereum VM opcodes, `name` is the name of the Solidity contract
-(currently, only code defining a single contract is supported), and
-`symTab` is an object containing storage layout and type information
-for all state variables and functions in the source.  Normally you
-will not need to use this object.
+This invokes the `solc` Solidity compiler on the server (*not*
+locally) and returns the result.  It has fairly general support for
+multiple files.  Its format is:
+```
+solc(<code string>[, <source code object>]),
+```
+where the `<source code object>` has the form:
+```
+{
+  main: {
+    filename1 : <code string>,
+    filename2 : undefined,
+    ...
+  },
+  import: { ... },
+  options: {
+    optimize, add-std, link, // flags for "solc" executable                    
+    optimize-runs, libraries // options with arguments for "solc" executable
+  }
+}
+```
+The `import` field has the same format as the `main` field.  If a
+filename field is `undefined`, then the file is read from disk in the
+current directory.  The first, string, parameter is taken to be a main
+file named `src`.  The `options` are passed directly to `solc`.  The
+return value of this call is an object
+
+```
+{
+  filename1 : {
+    contract1 : {
+      abi: <Solidity contract abi>,
+      bin: <compiled binary>
+    }, ...
+  }, ...
+}
+```
+
+where the filenames are *only* those from the main files; the import
+files are only those that appear in `import "file.sol";` statements.
+Currently, no more complex import statements are supported.
 
 #### `extabi(code)`
 
-Like `solc`, but returns only the symTab directly.
+This route, which has the same input format as `solc()` but does not
+accept `options`, applies a Solidity source analyzer to the main files
+and returns a much more detailed JSON object than the Solidity abi.
+Its output has the same format as `solc()` as well, except that
+instead of `abi` and `bin` fields, each contract name has as its value
+the JSON object associated.
 
 #### `faucet(address)`
 
 Takes an argument convertible to Address and supplies it with 1000
-ether.  This is available only on the `strato-dev` network, for
-obvious reasons.
+ether.  This is not available on a live network, for obvious reasons.
 
 #### `block(blockQueryObj)`
 
@@ -534,61 +588,85 @@ directly from Javascript.
 
 #### Solidity constructor
 
-Invoked as `Solidity(code)`, it is effectively an interface to
-`routes.solc`, returning a Promise of an object with the following
+The Solidity constructor takes one argument as in `solc()`, which may
+be either a code string or a source code object (but not both, unlike
+for `solc()`).  It applies the `solc()` and `extabi()` routes and
+returns an object with the same format as for those routes, where each
+contract name is associated with an object having the following
 prototype:
+```
+Solidity.prototype = {
+  bin: <compiled binary code>,
+  xabi: <extabi() output>,
+  constructor: Solidity,
+  construct: <contract constructor function>,
+  newContract: // deprecated,
+  detach: <for storing as a JSON string>
+}
+```
+There is also a single global method, 
+```
+Solidity.attach(<detached JSON string>)
+```
+which inverts `.detach()`.  That is, we have
+```
+Solidity(<source>).
+then(function(solObj) {
+    Solidity.attach(solObj.detach()) === solObj; // true
+});
+```
+This method is useful for "saving and reloading" a Solidity object
+without having call the routes.  Note that `Solidity.attach()` returns
+a *synchronous* result, not a promise.
 
-   - *code*: the constructing code.
-   - *name*: the Solidity contract name.
-   - *vmCode*: the compiled bytecode.
-   - *symTab*: the storage layout and type "symbol table" of functions
-      and variables
-   - *newContract(privkey, [txParams])*: submits a contract creation
-      transaction for the *vmCode* with the optional parameters
-      (subject to `ethcore.Transaction.defaults`) as well as the
-      *required* parameter *privkey*.  This returns the promise of a
-      "contract object" described next.
+#### Contract construction
 
-#### Contract object
+A Solidity object can be used to construct a *contract object* using
+the member function `.construct()`.  This method takes the contract
+constructor arguments and has the same interface as contract
+functions, described below.  In particular, to create a new contract
+you would do:
+```
+Solidity(<source>).
+then(function(solObj) {
+    return solObj.construct(<arguments>).callFrom(<private key>);
+}).
+then(function(contract) { ... });
+```
+where one operates on the contract object in the body of the last
+callback.  The `contract` has as its prototype the base `solObj` (and
+is thus also of type `Solidity`), and in addition has two more fields:
+```
+contract = {
+  account : <Account object for this contract>,
+  state : <all visible state variables and functions>
+}
+```
+The `state` field has elements named after the Solidity objects they
+reference, and their exact semantics are described in the next
+section.
 
-The contract object has as its prototype the Solidity object that
-created it, as well as the following properties:
+Since contract objects inherit from `Solidity`, the
+previously-described methods also apply to them.  The `.detach()` and
+`Solidity.attach()` functions, when applied to a created contract,
+record and reconstruct its address; thus, we have 
+```
+Solidity(<source>).
+then(function(solObj) {
+    return solObj.construct(<arguments>).callFrom(<private key>);
+}).
+then(function(contract) {
+    Solidity.attach(contract.detach()) === contract; // true
+});
+```
+Once again, this *synchronously* reconstructs the contract object,
+"attaching" it to the same contract on-blockchain.  The storage values
+and balance are thus preserved and this operation does not invoke the
+EVM.
 
-   - *account*: the `ethcore.Account` object for its address
-   - *state*: an object containing as properties every state variable
-      and top-level function in the Solidity code.  The value of
-      `state.varName` is a Promise resolving to the value of that
-      variable at the time the query is made, of the types given
-      below.  Mappings and functions have special syntax.
-
-#### Attaching to an existing contract
-
-Finally, it is possible to "attach" some metadata to a Solidity or
-contract object.  This facilitates recording and reloading these
-objects between sessions without creating new Ethereum contracts or
-even recompiling.
-
-`Solidity.attach({code, name, vmCode, symTab[, address]})`, given the
-metadata in the argument, creates either a Solidity or contract object
-with this data.  More specifically:
-
-  - If `address` is absent, a Solidity object is returned.  This
-    object is equivalent to `Solidity(code)` with the other properties
-    set to the values in the argument; no check is performed that
-    these values are actually correct.  The only way you should use
-    this is by the equivalent of
-    `Solidity.attach(JSON.stringify(solObj))`, as it avoids
-    recompilation.
-
-  - If `address` is present, a contract object is returned.  This is
-    the same as performing `Solidity(code).newContract(???)`, except
-    that no private key is necessary and the resulting object's
-    `account` member has address equal to `address`.  No check is
-    performed that this address actually exists or has the Solidity
-    ABI indicated by the other parameters.  It simply allows resuming
-    work with a contract object previously created directly by
-    `newContract`. (Note that `JSON.stringify(contractObj)` does not
-    have the correct format to submit to `Solidity.attach`.)
+Finally, the `.construct()` method works for contract objects just as
+though it were applied to the base Solidity object.  In this way, one
+can "clone" contracts with the same code.
 
 #### State variables
 Every Solidity type is given a corresponding Javascript (or Node.js)
@@ -596,7 +674,8 @@ type. They are:
    - *address*: the `ethcore.Address` (i.e. Buffer) type, of length 20 bytes.
    - *bool*: the `boolean` type.
    - *bytes* and its variants: the Buffer type of any length
-   - *int*, *uint*, and their variants: the `ethcore.Int` (i.e. `big-integer`) type
+   - *int*, *uint*, and their variants: the `ethcore.Int`
+     (i.e. `big-integer`) type
    - *string*: the `string` type
    - arrays: Javascript arrays of the corresponding type.  Fixed and
      dynamic arrays are not distinguished in this representation.
@@ -605,6 +684,20 @@ type. They are:
    - structs: Javascript objects whose enumerable properties are the
      names of the fields of the struct, with values equal to the
      representations of the struct fields.
+All of these types are equipped with sensible `.toJSON()` and
+`.toString()` methods, so print as their semantic values, not their
+internal details.  To print the entire state of a contract, one might
+do
+```
+Solidity(<source>).
+then(function(solObj) {
+    return solObj.construct(<arguments>).callFrom(<private key>);
+}).
+get("state").
+props(). // Gets the promised current values of all state variables
+then(JSON.stringify).
+then(console.log)
+```
 
 #### Mappings
 These are treated specially in two ways.  First, naturally, a key must
@@ -739,3 +832,25 @@ return value) then the corresponding entry in the list is `null`;
 otherwise, it is the same as what would be returned from a single
 Solidity method call.  If a constituent transaction failed for some
 reason, then its return value is `undefined`.
+
+## Changes
+
+### In v2.3.0
+- The `solc()` and `extabi()` routes were changed to allow multiple
+  files and multiple-contract source files.  Also, the `solc()` route
+  no longer returns the extended ABI.
+- Correspondingly, the REST API v1.1 is now required.
+- `setProfile` now takes the node URL rather than fixing it in the profile.
+- The `Solidity` constructor now takes the same multiple files.  Its
+  return value is now more detailed, though for backwards
+  compatibility, a call `Solidity("<source code>")` returns a bare
+  Solidity object, as before.
+- Multiple contract support is now vastly expanded.  Source code
+  defining multiple contracts results in multiple Solidity objects
+  that can be independently marshalled as contract objects and made to
+  interact through their public interfaces.
+- The old `.newContract()` method for Solidity objects has been
+  replaced by `.construct()`, whose conventions are identical to
+  Solidity function calls, and which now allows constructor arguments
+  to be passed.
+- `Solidity.attach()` now has a matching `Solidity.prototype.detach()`.

@@ -84,7 +84,6 @@ function Solidity(x) {
 Solidity.prototype = {
     "bin" : null,
     "xabi" : null,
-    "account" : null,
     "constructor" : Solidity,
     "construct": function() {
         var constrDef = {
