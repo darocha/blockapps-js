@@ -169,7 +169,7 @@ function setTypedefs(typesDef, varsDef) {
             }
         }
     }
-}
+ }
 
 function entriesToList(entries) {
     var result = [];

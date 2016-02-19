@@ -37,6 +37,7 @@
         "bignumber.js": "",
         "bluebird": "^2.9.34",
         "browser-request": "",
+        "browserify-fs": "",
         "crypto-js": ">=3.1",
         "enum": "",
         "ethereumjs-tx": "0.6.7",
@@ -64,7 +65,7 @@
     },
     "scripts": {
         "build": "npm run test && npm run browserify && npm run minify",
-        "browserify": "browserify -r .:blockapps-js -r bluebird -d -o blockapps.js",
+        "browserify": "browserify -r .:blockapps-js -r bluebird -r fs:browserify-fs -d -o blockapps.js",
         "minify": "minify blockapps.js > blockapps-min.js",
         "coveralls": "istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage",
         "test": "mocha"

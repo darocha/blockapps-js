@@ -48,6 +48,7 @@ function solMethod(typesDef, funcDef, name) {
             "to" : this,
             "data": funcArgs(funcDef["selector"], argsList, argArr)
         });
+
         result.txParams = txParams;
         result.callFrom = callFrom;
         Object.defineProperties(result, {
@@ -67,17 +68,20 @@ function solMethod(typesDef, funcDef, name) {
 }
 
 function txParams(given) {
-    ["value", "gasPrice", "gasLimit"].forEach(function(param) {
-        if (param in given) {
-            this[param] = "0x" + Int(given[param]).toString(16);
-        }
-    }.bind(this))
+    if (given) {
+        ["value", "gasPrice", "gasLimit"].forEach(function(param) {
+            if (param in given) {
+                this[param] = "0x" + Int(given[param]).toString(16);
+            }
+        }.bind(this))
+    }
     return this;
 }
 
 function callFrom(from) {
-    return this.send(from).get("response").bind(this).then(function(r) {
-        var result = decodeReturn(this._ret, r);
+    var tx = this;
+    return tx.send(from).get("response").then(function(r) {
+        var result = decodeReturn(tx._ret, r);
         switch (result.length) {
         case 0:
             return null;
@@ -121,7 +125,7 @@ function funcArg(varDef, y) {
         }
 
         if (varDef.dynamic) {
-            var len = Int(y.length/2).toEthABI();
+            var len = Int(y.length).toEthABI();
             result = len + result;
         }
         
@@ -140,16 +144,14 @@ function funcArg(varDef, y) {
         var head = [];
         var tail = [];
         y.forEach(function(obj, i) {
+            totalHeadLength += 32; // Bytes, not nibbles
             var entry = entries[i];
+            var enc = funcArg(entry, obj);
             if (entry.dynamic) {
-                totalHeadLength += 32;
                 head.push(undefined);
-                var a = funcArg(entry, obj);
-                tail.push(a);
+                tail.push(enc);
             }
             else {
-                var enc = funcArg(entry, obj);
-                totalHeadLength += enc.length/2; // Bytes not nibbles
                 head.push(enc);
                 tail.push("");
             }
@@ -169,7 +171,7 @@ function funcArg(varDef, y) {
 
         var enc = head.join("") + tail.join("");
         if (varDef.dynamic) {
-            len = Int(y.length).toEthABI;
+            len = Int(y.length).toEthABI();
             enc = len + enc
         }
 
@@ -194,15 +196,16 @@ function decodeReturn(valsDef, x) {
             return parseInt(varDef[field]);
         }
         else {
-            return Int(grabInt());
+            return Int(grabInt()).valueOf();
         }
     }
 
     var toSlice;
     
     function grabInt() {
-        toSlice = 64;
-        return "0x" + x.slice(0,64);
+        result = "0x" + x.slice(0,64);
+        x = x.slice(64);
+        return result
     }
     
     function go(valDef) {
@@ -236,7 +239,9 @@ function decodeReturn(valsDef, x) {
             result = util.castInt(valDef, grabInt());
             break;
         case "Array":
+            var length = getLength(valDef);
             toSlice = 0; // Handled by the entries
+            
             result = [];
             after = function(arr) {
                 var entries;
@@ -251,9 +256,18 @@ function decodeReturn(valsDef, x) {
                     }
                 }
 
-                var length = getLength(valDef);
                 for (var i = 0; i < length; ++i) {
-                    arr.push(go(entries[i]));
+                    var entry = entries[i];
+                    if (entry.dynamic) {
+                        var toSkip = grabInt() - (i + 1) * 32;
+                        var xPrefix = x.slice(0, toSkip);
+                        x = x.slice(toSkip);
+                        arr.push(go(entry));
+                        x = xPrefix + x;
+                    }
+                    else {
+                        arr.push(go(entry));
+                    }
                 }
                 return arr;
             }

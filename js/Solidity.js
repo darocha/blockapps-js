@@ -102,19 +102,30 @@ Solidity.prototype = {
         return this.construct().txParams(txParams).callFrom(privkey);
     },
     "detach": function() {
-        var copy = {};
-        var orig = this;
-        ["bin", "xabi", "account"].forEach(function(p) {
-            copy[p] = orig[p];
-        });
-        return copy;
+        var copy = {
+            "bin": this.bin,
+            "xabi": this.xabi,
+            "name": this.name
+        };
+        if (this.account) {
+            copy.address = this.account.address;
+        }
+        return JSON.stringify(copy);
     }
 };
 Solidity.attach = function(x) {
-    return attach(assignType(Solidity, JSON.parse(x)));
+    var parsed = JSON.parse(x);
+    var typed = assignType(Solidity, parsed);
+    if (parsed.address) {
+        return attach(typed);
+    }
+    else {
+        return typed;
+    }
 }
 
 function constrFrom(privkey) {
+    var contract = this._solObj;
     return this.send(privkey).
         get("contractsCreated").
         tap(function(addrList){
@@ -124,12 +135,10 @@ function constrFrom(privkey) {
         }).
         get(0).
         then(Address).
-        bind(this).
         then(function(addr) {
-            var contract = this._solObj;
-            contract.account = new Account(addr);
-            return contract;
+            contract.address = addr;
         }).
+        thenReturn(contract).
         then(attach).
         tagExcepts("Solidity");
 }
@@ -139,7 +148,8 @@ function attach(solObj) {
     var xabi = solObj.xabi;
     var types = xabi.types;
 
-    var addr = solObj.account.address;
+    var addr = solObj.address;
+    delete solObj.address;
     var funcs = xabi.funcs;
     for (var func in funcs) {
         Object.defineProperty(state, func, {
@@ -161,19 +171,18 @@ function attach(solObj) {
     var svars = xabi.vars;
     for (var svar in svars) {
         Object.defineProperty(state, svar, {
-            get : function() {
-                try {
-                    return makeSolObject(types, svars[svar], storage);
-                }
-                catch(e) {
-                    errors.pushTag(svars[svar].type)(e);
-                }
-            },
+            get : makeSolObject.bind(null, types, svars[svar], storage),
             enumerable: true
         });
     }
 
-    return assignType(solObj, {"state" : state});
+    if ("state" in solObj) {
+        solObj = Object.getPrototypeOf(solObj);
+    }
+    return assignType(solObj, {
+        "account" : Account(addr),
+        "state" : state
+    });
 }
 
 function makeSolObject(typeDefs, varDef, storage) {
@@ -182,6 +191,8 @@ function makeSolObject(typeDefs, varDef, storage) {
         var mapLoc = Int(Int(varDef["atBytes"]).over(32)).toEthABI();
         var keyType = varDef["key"];
         var valType = varDef["value"];
+        util.setTypedefs(typeDefs, {key: keyType});
+        util.setTypedefs(typeDefs, {val: valType});
         
         var result = function(x) {
             try {
@@ -232,6 +243,7 @@ function makeSolObject(typeDefs, varDef, storage) {
         }).spread(function(atBytes, lengthBytes) {
             var numEntries = Int(lengthBytes).valueOf();
             var entryDef = varDef["entry"];
+            util.setTypedefs(typeDefs, {entry: entryDef});
             var entrySize = util.objectSize(entryDef, typeDefs);
 
             var entryCopy = {}
@@ -252,6 +264,7 @@ function makeSolObject(typeDefs, varDef, storage) {
         var userName = varDef["typedef"];
         var typeDef = typeDefs[userName];
         var fields = typeDef["fields"];
+        util.setTypedefs(typeDefs, fields);
         // Artificially align
         var baseKey = util.fitObjectStart(varDef["atBytes"], 32);
 

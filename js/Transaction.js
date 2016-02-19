@@ -32,10 +32,10 @@ function Transaction(argObj) {
         ).toString(16);
         tx.data = "0x" + argObj.data;
 
-        if (argObj.to === undefined ||
-            argObj.to === null ||
-            argObj.to == 0 || // Intentional
-            Address.isInstance(argObj.to) && argObj.to.length === 0)
+        if (!(argObj.to === undefined ||
+              argObj.to === null ||
+              argObj.to == 0 || // Intentional
+              Address.isInstance(argObj.to) && argObj.to.length === 0))
         {
             tx.to = "0x" + Address(argObj.to).toString();
         }
@@ -62,14 +62,11 @@ function sendTX(privKeyFrom, addressTo) {
         privKeyFrom = new Buffer(privKeyFrom,"hex");
         var fromAddr = Address(privateToAddress(privKeyFrom));
         this.from = fromAddr.toString();
-        if (addressTo === undefined ||
-            addressTo === null ||
-            addressTo == 0 || // Intentional
-            Address.isInstance(addressTo) && addressTo.length === 0)
+        if (!(addressTo === undefined ||
+              addressTo === null ||
+              addressTo == 0 || // Intentional
+              Address.isInstance(addressTo) && addressTo.length === 0))
         {
-            this.to = "";
-        }
-        else {
             this.to = "0x" + Address(addressTo).toString();
         }
         addr = fromAddr;
