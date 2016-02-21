@@ -105,9 +105,8 @@ Aside from Address and Int, all the public methods return promises
 
 ### Quick start
 
-See the `bulkQuery` sample dApp in the `examples/` directory for a
-complete, working example.  Here are some snippets illustrating common
-operations.
+See the `examples/` directory for more complete samples.  Here are
+some snippets illustrating common operations.
 
 #### Query an account's balance
 
@@ -436,8 +435,8 @@ where the `<source code object>` has the form:
 ```
 {
   main: {
-    filename1 : <code string>,
-    filename2 : undefined,
+    filename1.sol : <code string>,
+    filename2.sol : undefined,
     ...
   },
   import: { ... },
@@ -455,7 +454,7 @@ return value of this call is an object
 
 ```
 {
-  filename1 : {
+  basename(filename1) : {
     contract1 : {
       abi: <Solidity contract abi>,
       bin: <compiled binary>
@@ -466,7 +465,10 @@ return value of this call is an object
 
 where the filenames are *only* those from the main files; the import
 files are only those that appear in `import "file.sol";` statements.
-Currently, no more complex import statements are supported.
+Currently, no more complex import statements are supported.  Note that
+the ".sol" extensions are cut and the basenames of the filenames are
+taken.  Thus, no two files should have the same name in different
+directories, and no files should be named "src.sol".
 
 #### `extabi(code)`
 

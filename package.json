@@ -35,21 +35,19 @@
     "dependencies": {
         "big-integer": "",
         "bignumber.js": "",
-        "bluebird": "^2.9.34",
-        "crypto-js": ">=3.1",
+        "bluebird": ">= 2.10.2",
         "enum": "",
         "ethereumjs-tx": "0.6.7",
         "ethereumjs-util": "",
         "request": "",
-        "string": ""
+        "sha3": ">= 1.2.0"
     },
     "engines": {
-        "node": ">= 0.12.5"
+        "node": ">= 5.0.0"
     },
     "devDependencies": {
         "browserify": "^11.0.1",
         "browser-request": "",
-        "browserify-fs": "",
         "browserify-sha3": "",
         "chai": "^3.2.0",
         "chai-as-promised": "",
@@ -65,13 +63,14 @@
     },
     "scripts": {
         "build": "npm run test && npm run browserify && npm run minify",
-        "browserify": "browserify -r .:blockapps-js -r bluebird -r fs:browserify-fs -d | sed '$d' >blockapps.js",
-        "minify": "minify blockapps.js > blockapps-min.js",
+        "browserify": "browserify -r .:blockapps-js -r bluebird -o dist/blockapps.js",
+        "minify": "minify dist/blockapps.js >dist/blockapps-min.js",
         "coveralls": "istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage",
         "test": "mocha"
     },
     "browser" : {
         "request" : "browser-request",
-        "sha3": "browserify-sha3"
+        "sha3": "browserify-sha3",
+        "./js/routes/readfile.js" : "./js/routes/readfile-browser.js"
     }
 }

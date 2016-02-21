@@ -1,6 +1,7 @@
 var HTTPQuery = require("../HTTPQuery.js");
 var Promise = require('bluebird');
-var fs = require("fs");
+var path = require("path");
+var readfile = require("./readfile.js");
 var errors = require("../errors.js")
 
 function streamFile(name, maybeContents) {
@@ -10,12 +11,12 @@ function streamFile(name, maybeContents) {
     }
     switch (typeof maybeContents) {
     case "undefined" :
-        return fs.createReadStream(name);
+        return readfile(name);
     case "string":
         return {
             value: maybeContents,
             options: {
-                filename: name
+                filename: path.basename(name, ".sol")
             }
         }
     }
@@ -42,15 +43,21 @@ function prepPostData (dataObj) {
 }
 
 function solcCommon(tag, code, dataObj) {
-    if (!dataObj) {
-        dataObj = {};
+    try {
+        if (!dataObj) {
+            dataObj = {};
+        }
+        if (!("options" in dataObj)) {
+            dataObj.options = {};
+        }
+        dataObj.options.src = code;
+        var route = "/" + tag;
+        var postData = prepPostData(dataObj);
     }
-    if (!("options" in dataObj)) {
-        dataObj.options = {};
+    catch(e) {
+        errors.pushTag(tag)(e);
     }
-    dataObj.options.src = code;
-    var route = "/" + tag;
-    return HTTPQuery(route, {"postData" : prepPostData(dataObj)}).tagExcepts(tag);
+    return HTTPQuery(route, {"postData" : postData}).tagExcepts(tag);
 }
 
 // solc(code :: string, {

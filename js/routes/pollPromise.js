@@ -9,7 +9,7 @@ module.exports.defaults = defaults;
 
 function pollPromise(promiseFn) {
     function doPoll() {
-        return promiseFn().cancellable().
+        return promiseFn().
             catch(errors.matchTag("NotDone"), function() {
                 return Promise.resolve().delay(defaults.pollEveryMS).then(doPoll);
             });

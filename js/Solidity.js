@@ -29,18 +29,25 @@ module.exports = Solidity;
 // If only one object given as "code", collapses to
 // { name : <contract name>, _ :: Solidity }
 function Solidity(x) {
-    var code = "";
-    var dataObj = {};
-    switch (typeof x) {
-    case "string" :
-        code = x;
-        break;
-    case "object" :
-        dataObj = x;
-        break;
+    try {
+        var code = "";
+        var dataObj = {};
+        switch (typeof x) {
+        case "string" :
+            code = x;
+            break;
+        case "object" :
+            dataObj = x;
+            break;
+        }
+        var solcR = solc(code, dataObj);
+        var xabiR = extabi(code, dataObj);
+    }
+    catch(e) {
+        errors.pushTag("Solidity")(e);
     }
     return Promise.
-        join(solc(code, dataObj), extabi(code, dataObj), function(solcR, xabiR) {
+        join(solcR, xabiR, function(solcR, xabiR) {
             var files = {};
             for (file in solcR) {
                 var contracts = {};
@@ -86,16 +93,21 @@ Solidity.prototype = {
     "xabi" : null,
     "constructor" : Solidity,
     "construct": function() {
-        var constrDef = {
-            "selector" : this.bin,
-            "args": this.xabi.constr,
-            "vals": {}
-        };
-        var tx = solMethod.
-            call(this, this.xabi.types, constrDef, this.name).
-            apply(Address(0), arguments);
-        tx.callFrom = constrFrom;
-        return tx;
+        try {
+            var constrDef = {
+                "selector" : this.bin,
+                "args": this.xabi.constr,
+                "vals": {}
+            };
+            var tx = solMethod.
+                call(this, this.xabi.types, constrDef, this.name).
+                apply(Address(0), arguments);
+            tx.callFrom = constrFrom;
+            return tx;
+        }
+        catch (e) {
+            errors.pushTag("Solidity")(e);
+        }
     },
     "newContract" : function (privkey, txParams) { // Backwards-compatibility
         return this.construct().txParams(txParams).callFrom(privkey);
@@ -113,13 +125,18 @@ Solidity.prototype = {
     }
 };
 Solidity.attach = function(x) {
-    var parsed = JSON.parse(x);
-    var typed = assignType(Solidity, parsed);
-    if (parsed.address) {
-        return attach(typed);
+    try {
+        var parsed = JSON.parse(x);
+        var typed = assignType(Solidity, parsed);
+        if (parsed.address) {
+            return attach(typed);
+        }
+        else {
+            return typed;
+        }
     }
-    else {
-        return typed;
+    catch(e) {
+        errors.pushTag("Solidity")(e);
     }
 }
 

@@ -14,7 +14,7 @@ function HTTPQuery(queryPath, params) {
         "json" : true,
         rejectUnauthorized: false,
         requestCert: true,
-        agent: false
+        agent: false,
     };
 
     try {
