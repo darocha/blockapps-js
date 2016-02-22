@@ -11,6 +11,42 @@ var contract, keystore;
 var names = {};
 var privkey = "1dd885a423f4e212740f116afa66d40aafdbb3a381079150371801871d9ea281";
 
+var src = '\
+contract Crowdsource {\
+    address recpient;\
+    uint numContribs;\
+\
+    struct ContribInfo {\
+        string name;\
+        uint totalPayments;\
+    }\
+    mapping (address => ContribInfo) contribInfo;\
+    address[] contributors;\
+\
+    function Crowdsource() {\
+        recipient = msg.sender;\
+        contributors.length = 0;\
+    }\
+\
+    function contribute(string name) returns (bool) {\
+        if (msg.value == 0) {\
+            return false;\
+        }\
+\
+        var contributor = contribInfo[msg.sender];\
+        if (contributor.totalPayments == 0) {\
+            ++contributors.length;\
+            contributors[contributors.length - 1] = msg.sender;\
+            contributor.name = name\
+        }\
+        contributor.totalPayments += msg.value;\
+        contribInfo[msg.sender] = contributor;\
+        ++numContribs;\
+        return true;\
+    }\
+}\
+'
+
 function start() {
     document.getElementById('placardArea').value = "No donations so far...";
     
@@ -20,8 +56,7 @@ function start() {
     var randomSeed = lightwallet.keystore.generateRandomSeed();
     keystore = new lightwallet.keystore(randomSeed, "");
 
-    Solidity({main:{"./crowdfunding.sol":undefined}}).
-        get("crowdfunding").get("Crowdsource").
+    Solidity(src).
         call("construct").
         call("callFrom", privkey).
         then(function(c) {

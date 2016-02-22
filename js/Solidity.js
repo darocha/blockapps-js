@@ -54,24 +54,8 @@ function Solidity(x) {
                 for (contract in solcR[file]) {
                     var xabi = xabiR[file][contract];
                     var bin = solcR[file][contract].bin;
-                                        
-                    var typesDef = xabi.types;
-                    for (typeName in typesDef) {
-                        var typeDef = typesDef[typeName];
-                        if (typeDef.type === "Enum") {
-                            typeDef.names = Enum(typeDef.names, typeName);
-                        }
-                    }
-
-                    util.setTypedefs(typesDef, xabi.vars);
-
-                    contracts[contract] = assignType(Solidity,
-                        {
-                            "bin": bin,
-                            "xabi": xabi,
-                            "name": contract
-                        }
-                    );
+                    contracts[contract] =
+                        makeSolidity(xabi, bin, contract);
                 }
                 files[file] = contracts;
             };
@@ -126,9 +110,11 @@ Solidity.prototype = {
 };
 Solidity.attach = function(x) {
     try {
-        var parsed = JSON.parse(x);
-        var typed = assignType(Solidity, parsed);
-        if (parsed.address) {
+        if (typeof x === "string") {
+            x = JSON.parse(x);
+        }
+        var typed = assignType(Solidity, x);
+        if (x.address) {
             return attach(typed);
         }
         else {
@@ -138,6 +124,26 @@ Solidity.attach = function(x) {
     catch(e) {
         errors.pushTag("Solidity")(e);
     }
+}
+
+function makeSolidity(xabi, bin, contract) {
+    var typesDef = xabi.types;
+    for (typeName in typesDef) {
+        var typeDef = typesDef[typeName];
+        if (typeDef.type === "Enum") {
+            typeDef.names = Enum(typeDef.names, typeName);
+        }
+    }
+
+    util.setTypedefs(typesDef, xabi.vars);
+    return assignType(
+        Solidity,
+        {
+            "bin": bin,
+            "xabi": xabi,
+            "name": contract
+        }
+    );
 }
 
 function constrFrom(privkey) {
