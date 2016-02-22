@@ -31,15 +31,6 @@ var profiles = {
         "gasLimit" : 3141592,
         "multiTXaddr" : "9459cd601c609ff5251a6fa500ba1c9b8bd8d45a"
     },
-    "strato-dev2" :
-    {
-        "serverURI" : "https://strato-dev2.blockapps.net",
-        "pollEveryMS" : 500,
-        "pollTimeoutMS" : 10000,
-        "gasPrice" : ethValue(1).in("wei"),
-        "gasLimit" : 3141592,
-        "multiTXaddr" : "8a53483de69960d69fdbf98dfcb6af368a8b4abf"
-    },
     "ethereum-frontier":
     {
         "pollEveryMS" : 1000,

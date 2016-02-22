@@ -1,5 +1,6 @@
-var ethTransaction = require('ethereumjs-tx');
-var privateToAddress = require('ethereumjs-util').privateToAddress;
+var rlp = require('rlp');
+var ecdsa = require('secp256k1/js');
+var sha3 = require("./Crypto.js").sha3;
 var submitTransaction = require("./Routes.js").submitTransaction;
 var Account = require("./Account.js");
 var Address = require("./Address.js");
@@ -7,77 +8,110 @@ var Int = require("./Int.js");
 var errors = require("./errors.js");
 
 module.exports = Transaction;
-module.exports.defaults = {
+
+var defaults = {
     "value": 0
 };
+
+module.exports.defaults = defaults;
 
 // argObj = {
 //   data:, value:, gasPrice:, gasLimit:
 // }
 function Transaction(argObj) {
+    if (!(this instanceof Transaction)) {
+        return new Transaction(argObj);
+    }
+    
     try {
-        var tx = new ethTransaction();
-        if (argObj === undefined) {
-            argObj = module.exports.defaults;
+        var tx = this;
+        if (typeof argObj !== "object") {
+            argObj = {};
         }
-
-        tx.gasPrice = "0x" + Int(
-            !("gasPrice" in argObj) ? module.exports.defaults.gasPrice : argObj.gasPrice
-        ).toString(16);
-        tx.gasLimit = "0x" + Int(
-            !("gasLimit" in argObj) ? module.exports.defaults.gasLimit : argObj.gasLimit
-        ).toString(16);
-        tx.value    = "0x" + Int(
-            !("value" in argObj) ? module.exports.defaults.value : argObj.value
-        ).toString(16);
-        tx.data = "0x" + argObj.data;
-
-        if (!(argObj.to === undefined ||
-              argObj.to === null ||
-              argObj.to == 0 || // Intentional
-              Address.isInstance(argObj.to) && argObj.to.length === 0))
-        {
-            tx.to = "0x" + Address(argObj.to).toString();
-        }
-
-        Object.defineProperty(tx, "partialHash", {
-            get : function() {
-                return bufToString(this.hash());
-            },
-            enumerable : true
+        ["gasPrice", "gasLimit", "value"].forEach(function(prop) {
+            tx[prop] = Int((prop in argObj ? argObj : defaults)[prop]);
         });
-
-        tx.toJSON = txToJSON;
-        tx.send = sendTX;
-        return tx;
+        tx.data = new Buffer(argObj.data || "", "hex");
+        tx.to = Address(argObj.to);
     }
     catch(e) {
         throw errors.pushTag("Transaction")(e);
     }
 }
+Object.defineProperties(Transaction.prototype, {
+    partialHash : {
+        value : txHash(false),
+        enumerable : true
+    },
+    fullHash : {
+        value : txHash(true),
+        enumerable : true
+    },
+    sign : {
+        value : signTX,
+        enumerable : true
+    },
+    send : {
+        value : sendTX,
+        enumerable : true
+    },
+    from : {
+        value : undefined,
+        enumerable : true,
+        writable : true
+    },
+    to : {
+        value : Address(0),
+        enumerable : true,
+        writable : true
+    },
+    data : {
+        value : new Buffer(0),
+        enumerable : true,
+        writable : true
+    },
+    toJSON : {
+        value : txToJSON,
+        enumerable : true
+    }
+});
+
+function signTX(privkey) {
+    var hash = new Buffer(this.partialHash(), "hex");
+    var pkey = new Buffer(privkey, "hex");
+    var ecSig = ecdsa.sign(hash, pkey);
+    this.r = Int(ecSig.signature.slice(0,32));
+    this.s = Int(ecSig.signature.slice(32,64));
+    this.v = ecSig.recovery + 27;
+}
+
+function txHash(full) {
+    return function() {
+        var txArr = txArray(this);
+        if (!full) {
+            txArr = txArr.slice(0,6);
+        }
+        return sha3(rlp.encode(txArr));
+    }
+}
 
 function sendTX(privKeyFrom, addressTo) {
-    var addr;
     try {
         privKeyFrom = new Buffer(privKeyFrom,"hex");
-        var fromAddr = Address(privateToAddress(privKeyFrom));
-        this.from = fromAddr.toString();
-        if (!(addressTo === undefined ||
-              addressTo === null ||
-              addressTo == 0 || // Intentional
-              Address.isInstance(addressTo) && addressTo.length === 0))
-        {
-            this.to = "0x" + Address(addressTo).toString();
-        }
-        addr = fromAddr;
+        pubKeyFrom = ecdsa.publicKeyConvert(
+            ecdsa.publicKeyCreate(privKeyFrom),
+            false
+        ).slice(1);
+        this.from = Address(sha3(pubKeyFrom));
+        this.to = Address(addressTo);
     }
     catch(e) {
         throw errors.pushTag("Transaction")(e);
     }
 
-    return Account(addr).nonce.
+    return Account(this.from).nonce.
         then((function(nonce) {
-            this.nonce = "0x" + nonce.toString(16);
+            this.nonce = nonce;
             this.sign(privKeyFrom);
             return submitTransaction(this);
         }).bind(this)).
@@ -86,17 +120,17 @@ function sendTX(privKeyFrom, addressTo) {
 
 function txToJSON() {
     var result = {
-        "nonce"      : bufToNum(checkZero(this.nonce)),
-        "gasPrice"   : bufToNum(checkZero(this.gasPrice)),
-        "gasLimit"   : bufToNum(checkZero(this.gasLimit)),
-        "value"      : bufToNum(checkZero(this.value)).toString(10),
-        "codeOrData" : bufToString(this.data),
-        "from"       : bufToString(this.from),
-        "to"         : bufToString(this.to),
-        "r"          : bufToString(this.r),
-        "s"          : bufToString(this.s),
-        "v"          : bufToString(this.v),
-        "hash"       : this.partialHash
+        "nonce"      : this.nonce,
+        "gasPrice"   : this.gasPrice,
+        "gasLimit"   : this.gasLimit,
+        "value"      : this.value,
+        "codeOrData" : this.data.toString("hex"),
+        "from"       : this.from.toString(),
+        "to"         : this.to.toString(),
+        "r"          : this.r.toString(16),
+        "s"          : this.s.toString(16),
+        "v"          : this.v.toString(16),
+        "hash"       : this.partialHash()
     }
     if (result["to"].length === 0) {
         delete result["to"];
@@ -104,14 +138,28 @@ function txToJSON() {
     return result;
 }
 
-function bufToNum(buf) {
-    return parseInt(bufToString(buf),16);
+function txArray(tx) {
+    return [
+        txInt(tx.nonce, "nonce"),
+        txInt(tx.gasPrice, "gas price"),
+        txInt(tx.gasLimit, "gas limit"),
+        tx.to,
+        txInt(tx.value, "value"),
+        tx.data,
+        txInt(tx.v, "v"),
+        txInt(tx.r, "r"),
+        txInt(tx.s, "s")
+    ];
 }
 
-function bufToString(buf) {
-    return buf.toString("hex");
-}
-
-function checkZero(buf) {
-    return (buf.length === 0) ? new Buffer([0]) : buf;
+function txInt(x, name) {
+    x = x || 0;
+    x = new Buffer(Int(x).toEthABI(), "hex");
+    while (x.length > 0 && x[0] === 0) {
+        x = x.slice(1);
+    }
+    if (x.length > 32) {
+        throw new Error("tx field " + name + " must have fewer than 32 bytes");
+    }
+    return x;
 }

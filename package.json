@@ -33,22 +33,21 @@
         "url": "https://github.com/blockapps/blockapps-js/blockapps-js.git"
     },
     "dependencies": {
-        "big-integer": "",
-        "bignumber.js": "",
-        "bluebird": ">= 2.10.2",
-        "enum": "",
-        "ethereumjs-tx": "0.6.7",
-        "ethereumjs-util": "",
-        "request": "",
-        "sha3": ">= 1.2.0"
+        "big-integer": "^1.6.12",
+        "bignumber.js": "^2.1.4",
+        "bluebird": "^2.10.2",
+        "enum": "^2.3.0",
+        "request": "^2.69.0",
+        "rlp": "^1.1.2",
+        "js-sha3": "^0.5.1",
+        "secp256k1": "^3.0.0"
     },
     "engines": {
-        "node": ">= 5.0.0"
+        "node": "^5.0.0"
     },
     "devDependencies": {
         "browserify": "^11.0.1",
         "browser-request": "",
-        "browserify-sha3": "",
         "chai": "^3.2.0",
         "chai-as-promised": "",
         "coveralls": "^2.11.4",
@@ -70,7 +69,6 @@
     },
     "browser" : {
         "request" : "browser-request",
-        "sha3": "browserify-sha3",
         "./js/routes/readfile.js" : "./js/routes/readfile-browser.js"
     }
 }

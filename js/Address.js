@@ -58,6 +58,9 @@ function Address(x) {
                 result = x.slice(-20);
             }
         }
+        else if (!x) {
+            result = new Buffer(0);
+        }
         else {
             throw new Error("x must be a number, a hex string, or a Buffer");
         }
