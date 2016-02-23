@@ -13,7 +13,7 @@ var privkey = "1dd885a423f4e212740f116afa66d40aafdbb3a381079150371801871d9ea281"
 
 var src = '\
 contract Crowdsource {\
-    address recpient;\
+    address recipient;\
     uint numContribs;\
 \
     struct ContribInfo {\
@@ -35,9 +35,8 @@ contract Crowdsource {\
 \
         var contributor = contribInfo[msg.sender];\
         if (contributor.totalPayments == 0) {\
-            ++contributors.length;\
-            contributors[contributors.length - 1] = msg.sender;\
-            contributor.name = name\
+            contributors.push(msg.sender);\
+            contributor.name = name;\
         }\
         contributor.totalPayments += msg.value;\
         contribInfo[msg.sender] = contributor;\

@@ -11,10 +11,10 @@ module.exports.defaults = defaults;
 function HTTPQuery(queryPath, params) {
     var options = {
         "uri":defaults.serverURI + defaults.apiPrefix + queryPath,
-        "json" : true,
         rejectUnauthorized: false,
         requestCert: true,
         agent: false,
+        headers: {}
     };
 
     try {
@@ -27,6 +27,7 @@ function HTTPQuery(queryPath, params) {
         var method = Object.keys(params)[0];
         var optionsField;
         var paramsField;
+        var optionsFn;
         switch (method) {
         case "get":
             options.method = "GET";
@@ -39,6 +40,8 @@ function HTTPQuery(queryPath, params) {
         case "data":
             options.method = "POST";
             optionsField = "body";
+            optionsFn = JSON.stringify;
+            options.headers["content-type"] = "application/json"
             break;
         case "postData":
             options.method = "POST";
@@ -47,17 +50,19 @@ function HTTPQuery(queryPath, params) {
         default:
             throw new Error(paramsError);
         }
-        options[optionsField] = params[method];
+        options[optionsField] = (optionsFn || function(x){return x;})(params[method]);
     }
     catch (e) {
         errors.pushTag("HTTPQuery")(e);
     }
     return request(options).
-        catch(SyntaxError, function() {
-            return []; // For JSON.parse
-        }).
         spread(function(response, body) {
-            return body;
+            try {
+                return JSON.parse(body);
+            }
+            catch(e) {
+                return body;
+            }
         }).
         then(function(r) {
             var inval = "Invalid Arguments\n";

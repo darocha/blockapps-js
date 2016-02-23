@@ -1,5 +1,5 @@
 contract Crowdsource {
-    address recpient;
+    address recipient;
     uint numContribs;
 
     struct ContribInfo {
@@ -21,9 +21,8 @@ contract Crowdsource {
 
         var contributor = contribInfo[msg.sender];
         if (contributor.totalPayments == 0) {
-            ++contributors.length;
-            contributors[contributors.length - 1] = msg.sender;
-            contributor.name = name
+            contributors.push(msg.sender);
+            contributor.name = name;
         }
         contributor.totalPayments += msg.value;
         contribInfo[msg.sender] = contributor;

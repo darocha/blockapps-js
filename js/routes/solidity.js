@@ -1,26 +1,8 @@
 var HTTPQuery = require("../HTTPQuery.js");
 var Promise = require('bluebird');
 var path = require("path");
-var readfile = require("./readfile.js");
+var streamFile = require("./readfile.js");
 var errors = require("../errors.js")
-
-function streamFile(name, maybeContents) {
-    if (!errors.isString(name)) {
-        throw new Error("filename must be a string, not a " +
-                        "'" + name.constructor.name + "'");
-    }
-    switch (typeof maybeContents) {
-    case "undefined" :
-        return readfile(name);
-    case "string":
-        return {
-            value: maybeContents,
-            options: {
-                filename: path.basename(name, ".sol")
-            }
-        }
-    }
-}
 
 function prepPostData (dataObj) {
     var postDataObj = {};
@@ -39,7 +21,10 @@ function prepPostData (dataObj) {
         }
         postDataObj[name] = postDataNameArr;
     }
-    return postDataObj;
+
+    var result = {}
+    result[Object.keys(dataObj).length ? "postData" : "post"] = postDataObj;
+    return result;
 }
 
 function solcCommon(tag, code, dataObj) {
@@ -57,7 +42,8 @@ function solcCommon(tag, code, dataObj) {
     catch(e) {
         errors.pushTag(tag)(e);
     }
-    return HTTPQuery(route, {"postData" : postData}).tagExcepts(tag);
+
+    return HTTPQuery(route, postData).tagExcepts(tag);
 }
 
 // solc(code :: string, {
