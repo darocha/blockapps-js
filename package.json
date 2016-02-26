@@ -26,6 +26,8 @@
     ],
     "files": [
         "js/",
+        "dist/blockapps.js",
+        "dist/blockapps-min.js",
         "index.js"
     ],
     "repository": {

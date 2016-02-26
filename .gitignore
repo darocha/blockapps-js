@@ -1,7 +1,5 @@
 *~
-blockapps.js
-blockapps-min.js
-testabi.html
+dist/*
 
 # Logs
 logs
