@@ -85,7 +85,7 @@ Solidity.prototype = {
             };
             var tx = solMethod.
                 call(this, this.xabi.types, constrDef, this.name).
-                apply(Address(0), arguments);
+                apply(Address(null), arguments);
             tx.callFrom = constrFrom;
             return tx;
         }

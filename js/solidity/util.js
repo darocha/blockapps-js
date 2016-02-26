@@ -91,9 +91,9 @@ function readInput(typesDef, varDef, x) {
 }
 
 function dynamicDef(varDef, storage) {
-    var atBytes = Int(Int(varDef["atBytes"]).over(32));
-    var realKey = dynamicLoc(atBytes.toString(16));
-    return Promise.all([realKey, storage.getKey(atBytes)]);
+    var atKey = Int(Int(varDef["atBytes"]).over(32));
+    var realBytes = dynamicLoc(atKey.toEthABI());
+    return Promise.all([realBytes, storage.getKey(atKey)]);
 }
 
 function dynamicLoc(loc) {
