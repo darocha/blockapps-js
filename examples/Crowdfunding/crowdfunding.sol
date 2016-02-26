@@ -1,5 +1,4 @@
 contract Crowdsource {
-    address recipient;
     uint numContribs;
 
     struct ContribInfo {
@@ -10,7 +9,6 @@ contract Crowdsource {
     address[] contributors;
 
     function Crowdsource() {
-        recipient = msg.sender;
         contributors.length = 0;
     }
 

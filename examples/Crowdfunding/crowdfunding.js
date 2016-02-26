@@ -1,5 +1,6 @@
 var blockapps = require("blockapps-js");
 var faucet = blockapps.routes.faucet;
+var newKeys = blockapps.ethbase.Crypto.newKeys;
 var Solidity = blockapps.Solidity;
 var Promise = require("bluebird");
 
@@ -13,7 +14,6 @@ var privkey = "1dd885a423f4e212740f116afa66d40aafdbb3a381079150371801871d9ea281"
 
 var src = '\
 contract Crowdsource {\
-    address recipient;\
     uint numContribs;\
 \
     struct ContribInfo {\
@@ -24,7 +24,6 @@ contract Crowdsource {\
     address[] contributors;\
 \
     function Crowdsource() {\
-        recipient = msg.sender;\
         contributors.length = 0;\
     }\
 \
@@ -52,11 +51,9 @@ function start() {
     var donate = document.getElementById('donate');
     donate.disabled = true;    
 
-    var randomSeed = lightwallet.keystore.generateRandomSeed();
-    keystore = new lightwallet.keystore(randomSeed, "");
-
     Solidity(src).
         call("construct").
+        call("txParams", {gasLimit: 1000000}).
         call("callFrom", privkey).
         then(function(c) {
             contract = c;
@@ -75,62 +72,50 @@ function buttonPush() {
     var donate = document.getElementById('donate');
 
     donate.disabled = true;
-    fund(name). 
-        return(patronize(name, value)).
-        then(function(reply) {
-            console.log(reply);
-            return artistPlacard().then(function(text){
-                placard.value = text;
-            });
-        }, function(e) {
-            console.log("Error");
-            console.log(e);
-        }).finally(function() {
+    fund(name).
+        then(contribute.bind(null, name, value)).
+        then(artistPlacard).
+        then(function(text){
+            placard.value = text;
+        }).
+        catch(console.log.bind(console)).
+        finally(function() {
             donate.disabled = false;
-        }).catch(function() {});
+        });
 }
 
 function fund(name) {
     return faucet(patronKey(name).address);
 }
 
-function patronize(name, value) {
-    return contract.state.patronize(name).txParams({"value":value}).
-        callFrom(patronKey(name).privkey);
+function contribute(name, value) {
+    return contract.state.contribute(name).
+        txParams({"value":value, gasLimit:1000000}).
+        callFrom(names[name].privateKey);
 }
 
 function patronKey(name) {
-    if (name in names) {
-        return names[name];
+    if (!(name in names)) {
+        console.log("Creating new account: " + name)
+        names[name] = newKeys();
     }
-    else {
-        var address = keystore.generateNewAddress("");
-        names[name] = {
-            "privkey" : keystore.exportPrivateKey(address,""),
-            "address" : address
-        }
-        return names[name];
-    }
+    return names[name];
 }
 
 function artistPlacard() {
     return Promise.join(
-        contract.state.artist,
-        contract.state.numGrants,
-        contract.state.patrons.map(contract.state.patronInfo),
-        function(artist, numGrants, pInfos) {
+        contract.state.recipient,
+        contract.state.numContribs,
+        contract.state.contributors.map(contract.state.contribInfo),
+        function(recipient, numContribs, cInfos) {
             var lines = [
-                "My name is: " + artist,
-                "I have been generously supported by " + numGrants +
+                "I have been generously supported by " + numContribs +
                     " grant(s) from the following patrons:",
             ]
 
-            return lines.concat(pInfos.map(function(pInfo) {
-                var result = "  The honorable " + pInfo.name;
-                if (pInfo.returning) {
-                    result += " (repeatedly)";
-                }
-                result += ": " + pInfo.totalPayments + " wei";
+            return lines.concat(cInfos.map(function(cInfo) {
+                var result = "  The honorable " + cInfo.name;
+                result += ": " + cInfo.totalPayments + " wei";
                 return result;
             })).join("\n");
         }
