@@ -33,6 +33,7 @@ code.
     - [`Storage.Word`](#storageword)
     - [`Transaction`](#transaction)
     - [`Units`](#units)
+    - [`Crypto`](#crypto)
   - [The `routes` submodule](#the-routes-submodule)
     - [`solc`](#solccode)
     - [`extabi`](#extabicode)
@@ -404,6 +405,18 @@ There are two main functions:
     arguments, as `convertEth(n,d)`, which is mathematically
     equivalent to `convertEth(n/d)` (except that `n` and `d` are
     integral types).
+
+#### `Crypto`
+
+Exposes a few cryptographic functions useful in Ethereum, namely:
+
+    - `keccak256`: Also known as "sha3", the hash algorithm used in
+      Ethereum.
+    - `secp256k1`: Also known as "ecdsa", the elliptic curve public
+      key cryptographic algorithms used in Ethereum.  Its interface is
+      that of the Node.js module of the same name.
+    - `newKEys`: Returns an object `{publicKey, privateKey, address}`
+      containing a random new key pair and the corresponding Address.
 
 ### The `routes` submodule
 

@@ -1,6 +1,7 @@
 var rlp = require('rlp');
-var ecdsa = require('secp256k1/js');
-var sha3 = require("./Crypto.js").sha3;
+var Crypto = require("./Crypto.js");
+var sha3 = Crypto.keccak256;
+var ecdsa = Crypto.secp256k1;
 var submitTransaction = require("./Routes.js").submitTransaction;
 var Account = require("./Account.js");
 var Address = require("./Address.js");
@@ -98,12 +99,12 @@ function txHash(full) {
 function sendTX(privKeyFrom, addressTo) {
     try {
         privKeyFrom = new Buffer(privKeyFrom,"hex");
-        pubKeyFrom = ecdsa.publicKeyConvert(
-            ecdsa.publicKeyCreate(privKeyFrom),
-            false
-        ).slice(1);
-        this.from = Address(sha3(pubKeyFrom));
-        this.to = Address(addressTo);
+        this.from = Crypto.pubKeyToAddress(
+            Crypto.privKeyToPubKey(privKeyFrom)
+        );
+        if (arguments.length > 1) {
+            this.to = Address(addressTo);
+        }
     }
     catch(e) {
         throw errors.pushTag("Transaction")(e);
@@ -123,17 +124,17 @@ function txToJSON() {
         "nonce"      : this.nonce,
         "gasPrice"   : this.gasPrice,
         "gasLimit"   : this.gasLimit,
+        "to"         : this.to.toString(),
         "value"      : this.value,
         "codeOrData" : this.data.toString("hex"),
         "from"       : this.from.toString(),
-        "to"         : this.to.toString(),
         "r"          : this.r.toString(16),
         "s"          : this.s.toString(16),
         "v"          : this.v.toString(16),
         "hash"       : this.partialHash()
     }
-    if (result["to"].length === 0) {
-        delete result["to"];
+    if (result.to == "") {
+        delete result.to;
     }
     return result;
 }

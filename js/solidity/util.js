@@ -2,7 +2,7 @@ var Address = require("../Address.js");
 var EthWord = require("../Storage.js").Word;
 var Int = require("../Int.js");
 var Promise = require('bluebird');
-var sha3 = require("../Crypto").sha3;
+var sha3 = require("../Crypto").keccak256;
 var errors = require("../errors.js");
 
 function readInput(typesDef, varDef, x) {
