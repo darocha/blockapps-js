@@ -412,11 +412,33 @@ Exposes a few cryptographic functions useful in Ethereum, namely:
 
     - `keccak256`: Also known as "sha3", the hash algorithm used in
       Ethereum.
-    - `secp256k1`: Also known as "ecdsa", the elliptic curve public
-      key cryptographic algorithms used in Ethereum.  Its interface is
-      that of the Node.js module of the same name.
-    - `newKEys`: Returns an object `{publicKey, privateKey, address}`
-      containing a random new key pair and the corresponding Address.
+    - `PrivateKey`: the constructor for a type (whose underlying data
+      object is a Buffer) representing an Ethereum private key.  It
+      has the following API:
+      - `PrivateKey()` creates a *random* private key.
+      - `PrivateKey(data)` reads the private key from its argument,
+        which may be a hex string, Buffer, or other PrivateKey.  The
+        input is validated as a private key.
+      - `privatekey.sign(data)` signs its argument with the private
+        key, returning an object `{r, s, v}` as the signature.  The
+        data is read as a hex string or Buffer.
+      - `privatekey.toAddress()` returns the Ethereum Address owned by
+        the private key.
+      - `privatekey.toPublicKey()` returns the corresponding public
+        key.  This is not so useful in Ethereum.
+      - `privatekey.toString(), .toJSON()` returns the 32-byte hex
+        string representation of the private key, left-padded with
+        zeros.
+      - `privatekey.toMnemonic()` returns a space-separated list of
+        allegedly memorable words (using the `mnemonic` package) that
+        encodes the private key precisely.  It is not intended to be
+        secure, merely human-readable.
+      - `PrivateKey.fromMnemonic(words)` inverts the above function.
+        Note that most words are not valid in a mnemonic, nor is every
+        list of valid words the mnemonic of a valid private key.  The
+        only call that makes sense is
+        `PrivateKey.fromMnemonic(privatekey.toMnemonic())` or its
+        equivalent.
 
 ### The `routes` submodule
 
