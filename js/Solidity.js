@@ -113,12 +113,13 @@ Solidity.attach = function(x) {
         if (typeof x === "string") {
             x = JSON.parse(x);
         }
-        var typed = assignType(Solidity, x);
+        x = assignType(Solidity, x);
         if (x.address) {
-            return attach(typed);
+            x.address = Address(x.address);
+            return attach(x);
         }
         else {
-            return typed;
+            return x;
         }
     }
     catch(e) {

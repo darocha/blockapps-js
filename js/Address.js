@@ -9,12 +9,14 @@ var addrDescrs = {
     toString: {
         value: function() {
             return Buffer.prototype.toString.bind(this)("hex");
-        }
+        },
+        enumerable: true
     },
     toJSON: {
         value: function() {
             return this.toString();
-        }
+        },
+        enumerable: true
     }
 };
 
@@ -62,12 +64,8 @@ function Address(x) {
             result = new Buffer(0);
         }
         else {
-            throw new Error("x must be a number, a hex string, or a Buffer");
+            throw new Error("address must be a number, a hex string, or a Buffer");
         }
-        result.toString = function() {
-            return Buffer.prototype.toString.call(this,"hex");
-        };
-        result.toJSON = result.toString;
 
         Object.defineProperties(result, addrDescrs);        
         return result;
@@ -77,7 +75,7 @@ function Address(x) {
     }
 }
 
-Address.prototype = Object.create(Buffer.prototype,  addrDescrs);
+Address.prototype = Object.create(Buffer.prototype, addrDescrs);
 
 Address.isInstance = function(x) {
     return (Buffer.isBuffer(x) && x.constructor === Address);

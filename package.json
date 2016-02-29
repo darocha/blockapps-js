@@ -43,7 +43,8 @@
         "rlp": "^1.1.2",
         "js-sha3": "^0.5.1",
         "secp256k1": "^3.0.0",
-        "randombytes": "^2.0.2"
+        "randombytes": "^2.0.2",
+        "mnemonic": "^1.0.1"
     },
     "engines": {
         "node": "^5.0.0"

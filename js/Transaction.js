@@ -1,7 +1,6 @@
 var rlp = require('rlp');
 var Crypto = require("./Crypto.js");
 var sha3 = Crypto.keccak256;
-var ecdsa = Crypto.secp256k1;
 var submitTransaction = require("./Routes.js").submitTransaction;
 var Account = require("./Account.js");
 var Address = require("./Address.js");
@@ -78,12 +77,11 @@ Object.defineProperties(Transaction.prototype, {
 });
 
 function signTX(privkey) {
-    var hash = new Buffer(this.partialHash(), "hex");
-    var pkey = new Buffer(privkey, "hex");
-    var ecSig = ecdsa.sign(hash, pkey);
-    this.r = Int(ecSig.signature.slice(0,32));
-    this.s = Int(ecSig.signature.slice(32,64));
-    this.v = ecSig.recovery + 27;
+    privkey = Crypto.PrivateKey(privkey);
+    var rsv = privkey.sign(this.partialHash());
+    this.r = rsv.r;
+    this.s = rsv.s;
+    this.v = rsv.v;
 }
 
 function txHash(full) {
@@ -98,10 +96,8 @@ function txHash(full) {
 
 function sendTX(privKeyFrom, addressTo) {
     try {
-        privKeyFrom = new Buffer(privKeyFrom,"hex");
-        this.from = Crypto.pubKeyToAddress(
-            Crypto.privKeyToPubKey(privKeyFrom)
-        );
+        privKeyFrom = Crypto.PrivateKey(privKeyFrom);
+        this.from = privKeyFrom.toAddress()
         if (arguments.length > 1) {
             this.to = Address(addressTo);
         }
