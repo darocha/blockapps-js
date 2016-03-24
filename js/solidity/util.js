@@ -91,13 +91,13 @@ function readInput(typesDef, varDef, x) {
 }
 
 function dynamicDef(varDef, storage) {
-    var atKey = Int(Int(varDef["atBytes"]).over(32));
+    var atKey = Int(varDef["atBytes"]).over(32);
     var realBytes = dynamicLoc(atKey.toEthABI());
     return Promise.all([realBytes, storage.getKey(atKey)]);
 }
 
 function dynamicLoc(loc) {
-    return Int(Int("0x" + sha3(loc)).times(32));
+    return Int("0x" + sha3(loc)).times(32);
 }
 
 function castInt(varDef, x) {

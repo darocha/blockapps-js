@@ -92,7 +92,7 @@ function EthWord(x) {
         if (typeof x === "string" && x.match(/[0-9a-fA-F]/) === null) {
             throw new Error("'" + x + "' is not a hex string");
         }
-        if (typeof x === "number" || Int.isInstance(x)) {
+        if (typeof x === "number" || x instanceof Int) {
             x = x.toString(16);
         }
         else if (Buffer.isBuffer(x)) {

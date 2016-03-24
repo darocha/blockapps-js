@@ -25,7 +25,7 @@ function Address(x) {
         if (Address.isInstance(x)) {
             return x;
         }
-        if (typeof x === "number" || Int.isInstance(x)) {
+        if (typeof x === "number" || x instanceof Int) {
             x = x.toString(16);
         }
 

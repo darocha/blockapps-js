@@ -3,7 +3,8 @@ var Address = require("../Address.js");
 var Int = require("../Int.js");
 var errors = require("../errors.js");
 var keccak256 = require("./keccak256.js");
-var ec = new require('elliptic').ec('secp256k1');
+var ec0 = require("elliptic");
+var ec = new ec0.ec('secp256k1');
 var mnemonic = require("mnemonic");
 
 var curveN = Int(ec.n);
@@ -44,18 +45,24 @@ var pkeyDescrs = {
     },
     sign: {
         value: function(data) {
+          try {
             data = new Buffer(data, "hex");
             var ecSig = ec.keyFromPrivate(this).sign(data);
             return {
-                r: Int("0x" + ecSig.r.toString(16)),
-                s: Int("0x" + ecSig.s.toString(16)),
+                r: Int(ecSig.r),
+                s: Int(ecSig.s),
                 v: ecSig.recoveryParam + 27
             };
+          }
+          catch (e) {
+            errors.pushTag("PrivateKey")(e);
+          }
         },
         enumerable: true
     },
     verify: {
         value: function(data, signature) {
+          try {
             data = new Buffer(data, "hex");
             signature = {
               r: signature.r.toString(),
@@ -63,6 +70,10 @@ var pkeyDescrs = {
               recoveryParam: signature.v - 27
             };
             return ec.keyFromPrivate(this).verify(data, signature);
+          }
+          catch (e) {
+            errors.pushTag("PrivateKey")(e);
+          } 
         }
     }
 };
@@ -71,7 +82,7 @@ function PrivateKey(x) {
         if (PrivateKey.isInstance(x)) {
             return x;
         }
-        if (typeof x === "number" || Int.isInstance(x)) {
+        if (typeof x === "number" || x instanceof Int) {
             x = x.toString(16);
         }
 

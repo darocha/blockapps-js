@@ -35,9 +35,9 @@
         "url": "https://github.com/blockapps/blockapps-js/blockapps-js.git"
     },
     "dependencies": {
-        "big-integer": "^1.6.12",
         "bignumber.js": "^2.1.4",
         "bluebird": "^2.10.2",
+        "bn.js": "^4.11.0",
         "elliptic": "^6.2.3",
         "enum": "^2.3.0",
         "request": "^2.69.0",

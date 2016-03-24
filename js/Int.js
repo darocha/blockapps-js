@@ -1,127 +1,149 @@
-var bigInt = require('big-integer');
-var bigNum = require('bignumber.js');
-var extendType = require("./types.js").extendType;
+var bigInt = require('bn.js');
 var errors = require("./errors.js");
 
 function Int(x) {
-    try {
-        if (Int.isInstance(x)) {
-            return x;
-        }
+    if (x instanceof Int) {
+        return x;
+    }
 
-        var result;
-        if (typeof x === "number") {
-            result = bigInt(x);
+    if (!(this instanceof Int)) {
+        return new Int(x);
+    }
+  
+    try {
+        var result = x;
+        if (x == undefined) { // Intentionally ==
+            result = 0;
+        }
+        if (bigInt.isBN(x)) {
+            result = x.toString(10);
         }
         else if (typeof x === "string") {
+            // bn.js doesn't actually validate its input
             if (x.slice(0,2) === "0x") {
-                x = x.slice(2).replace(/\s+/g, ''); // Allow spaces for formatting
-                try {
-                    result = bigInt(x,16);
-                }
-                catch(e) {
+                x = x.slice(2);
+                if (!/^[\s\da-fA-F]+$/.test(x)) {
                     throw new Error("Invalid hex integer: " + x);
                 }
+                result = new bigInt(x,16);
             }
             else {
-                try {
-                    result = bigInt(x,10);
-                }
-                catch(e) {
+                if (!/^[\s\d]+$/.test(x)) {
                     throw new Error("Invalid decimal integer: " + x);
                 }
+                result = new bigInt(x,10);
             }
         }
-        else if (Buffer.isBuffer(x)) {
-            if (x.length == 0) {
-                result = bigInt(0);
-            }
-            else {
-                result = bigInt(x.toString("hex"),16);
-            }
+        try {
+            bigInt.call(this, result);
         }
-        else {
-            result = bigInt(x.toString(), 10);
+        catch(e) {
+            bigInt.call(this, result.toString());
         }
-        
-        var c = result.constructor;
-        result = extendType(result, Int.prototype);
-        Object.defineProperty(result, "bigIntType", {value: c});
-        return result;
     }
     catch(e) {
         errors.pushTag("Int")(e);
     }
 }
 
-Object.defineProperties(Int.prototype, {
-    toEthABI: { value: toEthABI, enumerable: true },
+Int.prototype = Object.create(bigInt.prototype, {
+    constructor: {
+        value: Int,
+        enumerable: true
+    },
+    toEthABI: {
+        value: function() {
+            return this.mod(i256).toString(16, 64);
+        },
+        enumerable: true
+    },
     toString: {
-        value: function(n) {
+        value: function(n, w) {
             if (!n) {
                 n = 10;
             }
-            return this.bigIntType.prototype.toString.call(this, n);
-        }
+            return bigInt.prototype.toString.call(this, n, w);
+        },
+        enumerable: true
     },
     toJSON: {
         value: function() {
             return this.toString();
+        },
+        enumerable: true
+    },
+    valueOf: {
+        value: bigInt.prototype.toNumber,
+        enumerable: true
+    }, 
+    pow : {
+        value: function(n) {
+            return bigInt.prototype.pow.call(this, Int(n));
         }
+    },
+    mod : {
+        value: function(n) {
+            // Pointlessly, bn does not have umodn (explicitly)
+            var result;
+            if (typeof n === "number") {
+                result = this.modn(n);
+                if (result < 0) {
+                    result += n;
+                }
+                return result;
+            }
+            return this.umod(n);
+        },
+        enumerable: true
+    },
+    plus : {
+        value: chooseNumeric("add"),
+        enumerable: true
+    },
+    minus : {
+        value: chooseNumeric("sub"),
+        enumerable: true
+    },
+    times : {
+        value: chooseNumeric("mul"),
+        enumerable: true
+    },
+    over : {
+        value: chooseNumeric("div"),
+        enumerable: true
+    },
+    shiftRight: {
+        value: chooseNumeric("shr"),
+        enumerable: true
+    },
+    shiftLeft: {
+        value: chooseNumeric("shl"),
+        enumerable: true
     }
 });
 
-
-Int.isInstance = function(x) {
-    if (!(bigInt.isInstance(x) && "bigIntType" in x)) {
-        return false;
+function chooseNumeric(baseName) {
+    return function(n) {
+        var fn = baseName;
+        if (typeof n === "number") {
+          fn = baseName + "n";
+        }
+        return Int(this[fn](n));
     }
-    return (Object.getPrototypeOf(Object.getPrototypeOf(x)) ===
-            x.bigIntType.prototype);
 }
 
-function toEthABI() {
-    var i256 = Int(2).pow(256);
-    var x = this.mod(i256);
-    if (x.lt(0)) {
-        x = x.plus(i256);
-    }
-    
-    var result = x.toString(16);
-    if (result.length % 2 != 0) {
-        result = "0" + result;
-    }
-    while (result.length < 64) {
-        result = "00" + result;
-    }
-    return result;
+var i256 = Int(2).pow(256);
+
+Int.uintSized = uintSized;
+
+function uintSized(x, radix) {
+    return Int(x).mod(i256);
 }
 
 Int.intSized = intSized;
 
 function intSized(x, radix) {
-    var modInt = Int(256).pow(radix);
-    var xInt = _uintSized(x, modInt);
-    var hasTopBit = xInt.shiftRight(radix - 1).and(1) == 1;
-    if (hasTopBit) {
-        xInt = xInt.minus(modInt);
-    }
-    return Int(xInt);
-}
-
-Int.uintSized = uintSized;
-
-function uintSized(x, radix) {
-    var modInt = Int(256).pow(radix);
-    return _uintSized(x, modInt);
-}
-
-function _uintSized(x, modInt) {
-    var xInt = Int(x).mod(modInt);
-    if (xInt.lt(0)) {
-        xInt = xInt.plus(modInt);
-    }
-    return Int(xInt);
+    return uintSized(x, radix).fromTwos(256);
 }
 
 module.exports = Int;
