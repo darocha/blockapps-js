@@ -3,8 +3,10 @@ var Address = require("../Address.js");
 var Int = require("../Int.js");
 var errors = require("../errors.js");
 var keccak256 = require("./keccak256.js");
-var secp256k1 = require('secp256k1/js');
+var ec = new require('elliptic').ec('secp256k1');
 var mnemonic = require("mnemonic");
+
+var curveN = Int(ec.n);
 
 module.exports = PrivateKey;
 
@@ -24,10 +26,7 @@ var pkeyDescrs = {
     },
     toPubKey: {
         value: function() {
-            return secp256k1.publicKeyConvert(
-                secp256k1.publicKeyCreate(this),
-                false
-            ).slice(1);
+            return new Buffer(ec.keyFromPrivate(this).getPublic(false, true).slice(1));
         },
         enumerable: true
     },
@@ -44,16 +43,27 @@ var pkeyDescrs = {
         enumerable: true
     },
     sign: {
-        value: function (data) {
+        value: function(data) {
             data = new Buffer(data, "hex");
-            var ecSig = secp256k1.sign(data, this);
+            var ecSig = ec.keyFromPrivate(this).sign(data);
             return {
-                r: Int(ecSig.signature.slice(0,32)),
-                s: Int(ecSig.signature.slice(32,64)),
-                v: ecSig.recovery + 27
+                r: Int("0x" + ecSig.r.toString(16)),
+                s: Int("0x" + ecSig.s.toString(16)),
+                v: ecSig.recoveryParam + 27
             };
         },
         enumerable: true
+    },
+    verify: {
+        value: function(data, signature) {
+            data = new Buffer(data, "hex");
+            signature = {
+              r: signature.r.toString(),
+              s: signature.s.toString(),
+              recoveryParam: signature.v - 27
+            };
+            return ec.keyFromPrivate(this).verify(data, signature);
+        }
     }
 };
 function PrivateKey(x) {
@@ -99,13 +109,13 @@ function PrivateKey(x) {
         else if (!x) {
             do {
                 result = randomBytes(32);
-            } while (!secp256k1.privateKeyVerify(result));
+            } while (!privateKeyVerify(result));
         }
         else {
             throw new Error("private key must be a number, a hex string, or a Buffer");
         }
 
-        if (!secp256k1.privateKeyVerify(result)) {
+        if (!privateKeyVerify(result)) {
             throw new Error("invalid private key: " + result.toString("hex"));
         }
         Object.defineProperties(result, pkeyDescrs);        
@@ -126,4 +136,9 @@ PrivateKey.fromMnemonic = function(m) {
 function pubKeyToAddress(pubKey) {
     pubKey = new Buffer(pubKey, "hex");
     return Address(keccak256(pubKey));
+}
+
+function privateKeyVerify(x) {
+     x = Int(x);
+     return x.gt(0) && x.lt(curveN);
 }

@@ -15,7 +15,7 @@ function Int(x) {
         }
         else if (typeof x === "string") {
             if (x.slice(0,2) === "0x") {
-                x = x.slice(2);
+                x = x.slice(2).replace(/\s+/g, ''); // Allow spaces for formatting
                 try {
                     result = bigInt(x,16);
                 }
