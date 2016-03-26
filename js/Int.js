@@ -26,12 +26,12 @@ function Int(x) {
                     throw new Error("Invalid hex integer: " + x);
                 }
                 result = new bigInt(x,16);
+                result = result.toString(10);
             }
             else {
                 if (!/^[\s\d]+$/.test(x)) {
                     throw new Error("Invalid decimal integer: " + x);
                 }
-                result = new bigInt(x,10);
             }
         }
         try {
