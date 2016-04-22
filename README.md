@@ -415,7 +415,6 @@ Exposes a few cryptographic functions useful in Ethereum, namely:
     - `PrivateKey`: the constructor for a type (whose underlying data
       object is a Buffer) representing an Ethereum private key.  It
       has the following API:
-      - `PrivateKey()` creates a *random* private key.
       - `PrivateKey(data)` reads the private key from its argument,
         which may be a hex string, Buffer, or other PrivateKey.  The
         input is validated as a private key.
@@ -439,6 +438,7 @@ Exposes a few cryptographic functions useful in Ethereum, namely:
         only call that makes sense is
         `PrivateKey.fromMnemonic(privatekey.toMnemonic())` or its
         equivalent.
+      - `PrivateKey.random()` creates a random private key.
 
 ### The `routes` submodule
 

@@ -117,11 +117,6 @@ function PrivateKey(x) {
                 result = x.slice(-32);
             }
         }
-        else if (!x) {
-            do {
-                result = randomBytes(32);
-            } while (!privateKeyVerify(result));
-        }
         else {
             throw new Error("private key must be a number, a hex string, or a Buffer");
         }
@@ -142,6 +137,13 @@ PrivateKey.isInstance = function(x) {
 }
 PrivateKey.fromMnemonic = function(m) {
     return PrivateKey(mnemonic.decode(m.split(" ")));
+}
+PrivateKey.random = function() {
+  var result;
+  do {
+    result = randomBytes(32);
+  } while (!privateKeyVerify(result));
+  return result;
 }
 
 function pubKeyToAddress(pubKey) {
