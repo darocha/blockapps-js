@@ -34,7 +34,7 @@ var profiles = {
     "ethereum-frontier":
     {
         "pollEveryMS" : 1000,
-        "pollTimeoutMS" : 30000,
+        "pollTimeoutMS" : 60000,
         "gasPrice" : ethValue(1).in("szabo"),
         "gasLimit" : 1e6
     }
