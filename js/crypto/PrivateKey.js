@@ -143,7 +143,7 @@ PrivateKey.random = function() {
   do {
     result = randomBytes(32);
   } while (!privateKeyVerify(result));
-  return result;
+  return PrivateKey(result);
 }
 
 function pubKeyToAddress(pubKey) {
