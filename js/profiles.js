@@ -35,7 +35,7 @@ var profiles = {
     {
         "pollEveryMS" : 1000,
         "pollTimeoutMS" : 60000,
-        "gasPrice" : ethValue(1).in("szabo"),
+        "gasPrice" : ethValue(50).in("gwei"),
         "gasLimit" : 1e6
     }
 };
