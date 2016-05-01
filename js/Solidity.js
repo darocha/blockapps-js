@@ -175,19 +175,20 @@ function attach(solObj) {
     delete solObj.address;
     var funcs = xabi.funcs;
     for (var func in funcs) {
+        var funcDef = funcs[func]
         Object.defineProperty(state, func, {
-            value: solMethod(types, funcs[func], func).bind(addr),
+            value: solMethod(types, funcDef, func).bind(addr),
             enumerable: true
         });
-        state[func].toJSON = function() {
-            var args = util.entriesToList(funcs[func].args).
+        state[func].toJSON = (function(fDef) {
+            var args = util.entriesToList(fDef.args).
                 map(function(arg) { return arg.type; }).
                 join(", ");
-            var vals = util.entriesToList(funcs[func].vals).
+            var vals = util.entriesToList(fDef.vals).
                 map(function(val) { return val.type; }).
                 join(", ");
             return "function (" + args + ") returns (" + vals + ")";
-        };
+        }).bind(null, funcDef);
     }
 
     var storage = new Storage(addr);
