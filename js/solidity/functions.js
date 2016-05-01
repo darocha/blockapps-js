@@ -259,11 +259,12 @@ function decodeReturn(valsDef, x) {
                 for (var i = 0; i < length; ++i) {
                     var entry = entries[i];
                     if (entry.dynamic) {
-                        var toSkip = grabInt() - (i + 1) * 32;
+                        // Skip to the tail; the next dynamic entry is at the front of it
+                        var toSkip = (length - i) * 64;
                         var xPrefix = x.slice(0, toSkip);
                         x = x.slice(toSkip);
                         arr.push(go(entry));
-                        x = xPrefix + x;
+                        x = xPrefix.slice(64) + x; // Remove the head for this entry
                     }
                     else {
                         arr.push(go(entry));
