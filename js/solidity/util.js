@@ -173,10 +173,12 @@ function setTypedefs(typesDef, varsDef) {
 
 function entriesToList(entries) {
     var result = [];
-    for (var entry in entries) {
-        var entryDef = entries[entry];
+    entries = entries || {};
+    Object.keys(entries).forEach(function(ename) {
+        var entryDef = entries[ename];
+        entryDef.name = ename;
         result[entryDef["index"]] = entryDef;
-    }
+    })
     return result;
 }
 

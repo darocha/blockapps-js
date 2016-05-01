@@ -20,7 +20,8 @@ function solMethod(typesDef, funcDef, name) {
             firstArg instanceof Object &&
             firstArg.constructor === Object)
         {
-            for (var arg in args) {
+            argArr = argsList.map(function(argDef) {
+                var arg = argDef.name;
                 if (firstArg[arg] === undefined) {
                     throw errors.tagError(
                         "Solidity",
@@ -28,8 +29,8 @@ function solMethod(typesDef, funcDef, name) {
                             "arguments must include \"" + arg + "\""
                     );
                 }
-                argArr.push(util.readInput(typesDef, args[arg], firstArg[arg]));
-            }
+                return util.readInput(typesDef, argDef, firstArg[arg]);
+            })
         }
         else {
             if (arguments.length !== argsList.length) {
