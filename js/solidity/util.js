@@ -127,7 +127,7 @@ function encodingLength(varDef) {
 
 function fitObjectStart(start, size) {
     start = Int(start);
-    var offset = start % 32;
+    var offset = start.modn(32).valueOf();
     if (offset > 0 && offset + size > 32) {
         start = start.plus(32 - offset);
     }
