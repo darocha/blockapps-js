@@ -11,6 +11,9 @@ function readInput(typesDef, varDef, x) {
         case "Address":
             return Address(x);
         case "Array":
+            if (typeof x === "string") {
+                x = JSON.parse(x);
+            }
             return x.map(readInput.bind(null, typesDef, varDef["entry"]));
         case "Bool":
             return Boolean(x);
@@ -46,6 +49,9 @@ function readInput(typesDef, varDef, x) {
             return String(x);
         case "Struct":
             var typeDef = types[varDef["typedef"]];
+            if (typeof x === "string") {
+                x = JSON.parse(x);
+            }
             if (typeof x !== "object") {
                 throw errors.tagError(
                     "Solidity",
