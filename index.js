@@ -14,4 +14,4 @@ module.exports.Solidity = require("./js/Solidity.js");
 module.exports.MultiTX = require("./js/MultiTX.js");
 module.exports.setProfile = require("./js/profiles.js");
 
-module.exports.setProfile("strato-dev","http://strato-dev3.blockapps.net","1.1");
+module.exports.setProfile("strato-dev","http://strato-dev3.blockapps.net","1.2");
