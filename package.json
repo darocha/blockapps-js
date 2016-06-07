@@ -52,21 +52,12 @@
     "devDependencies": {
         "browserify": "^11.0.1",
         "browser-request": "",
-        "chai": "^3.2.0",
-        "chai-as-promised": "",
-        "coveralls": "^2.11.4",
-        "istanbul": "^0.3.19",
-        "minify" : "",
-        "mocha": "^2.2.5",
-        "mocha-lcov-reporter": "0.0.2",
-        "nock": "^2.10.0"
+        "minify" : ""
     },
     "scripts": {
-        "build": "npm run test && npm run browserify && npm run minify",
+        "build": "npm run browserify && npm run minify",
         "browserify": "browserify -r .:blockapps-js -r bluebird -o dist/blockapps.js",
         "minify": "minify dist/blockapps.js >dist/blockapps-min.js",
-        "coveralls": "istanbul cover ./node_modules/mocha/bin/_mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | ./node_modules/coveralls/bin/coveralls.js && rm -rf ./coverage",
-        "test": "mocha"
     },
     "browser" : {
         "request" : "browser-request",
