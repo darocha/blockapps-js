@@ -62,7 +62,7 @@
     "browser" : {
         "request" : "browser-request",
         "./js/routes/readfile.js" : "./js/routes/readfile-browser.js"
-    }
+    },
     "pre-commit": {
         "run" : [ "browserify", "minify" ]
     }
