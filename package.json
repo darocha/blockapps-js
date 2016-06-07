@@ -1,6 +1,6 @@
 {
     "name": "blockapps-js",
-    "version": "3.0.4",
+    "version": "3.0.5",
     "description": "Interface to the Ethereum blockchain providing contract creation and transactions, state inspection, and dApp registration and management",
     "keywords": [
         "ethereum",
@@ -57,7 +57,7 @@
     "scripts": {
         "build": "npm run browserify && npm run minify",
         "browserify": "browserify -r .:blockapps-js -r bluebird -o dist/blockapps.js",
-        "minify": "minify dist/blockapps.js >dist/blockapps-min.js",
+        "minify": "minify dist/blockapps.js >dist/blockapps-min.js"
     },
     "browser" : {
         "request" : "browser-request",
