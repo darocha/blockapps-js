@@ -52,6 +52,7 @@
     "devDependencies": {
         "browserify": "^11.0.1",
         "browser-request": "",
+        "pre-commit": "^1.1.3",
         "chai": "^3.2.0",
         "chai-as-promised": "",
         "coveralls": "^2.11.4",
@@ -71,5 +72,8 @@
     "browser" : {
         "request" : "browser-request",
         "./js/routes/readfile.js" : "./js/routes/readfile-browser.js"
+    }
+    "pre-commit": {
+        "run" : [ "browserify", "minify" ]
     }
 }
