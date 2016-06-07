@@ -65,22 +65,16 @@ code.
 
 ## Installation
 
-`npm install blockapps-js`
+```npm install blockapps-js```
 
-### Browserification
-
-```sh
-npm run browserify // produces blockapps.js
-# Optional: npm run minify // produces blockapps-min.js from blockapps.js
-```
-
-Both the `blockapps-js` and `bluebird` modules are available in these
-scripts, so the coding style will be identical to below both for
-browser and Node.
+The `dist/` subidrectory contains browserified and minified files
+`blockapps.js` and `blockapps-min.js`.  Both the `blockapps-js` and `bluebird`
+modules are available in these scripts, so the coding style will be identical
+to below both for browser and Node.
 
 ## BlockApps documentation
 
-Documentation is available at http://blockapps.net/apidocs.  Below is
+Documentation is available at http://blockapps.net/documentation#strato-api-endpoints. Below is
 the API for this particular module.
 
 ## Overview
@@ -90,7 +84,7 @@ All functionality is included in the `blockapps-js` module:
 ```js
 var blockapps = require('blockapps-js');
 /* blockapps = {
- *   ethbase : { Account, Address, Int, Storage, Transaction, Units },
+ *   ethbase,
  *   routes,
  *   query,
  *   polling,
@@ -106,7 +100,6 @@ Aside from Address and Int, all the public methods return promises
 
 ### Quick start
 
-See the `examples/` directory for more complete samples.  Here are
 some snippets illustrating common operations.
 
 #### Query an account's balance
@@ -114,18 +107,19 @@ some snippets illustrating common operations.
 ```js
 var Account = require('blockapps-js').ethbase.Account;
 
+// An account that already exists
 // The "0x" prefix is optional for addresses
 var address = "16ae8aaf39a18a3035c7bf71f14c507eda83d3e3"
 
 Account(address).balance.then(function(balance) {
-  // In here, "balance" is a big-integer you can manipulate directly.
+  // In here, "balance" is a bignum you can manipulate directly.
 });
 ```
 
 #### Send ether between accounts
 
 ```js
-var ethbase = require('blockapps-js').ethbase
+var ethbase = require('blockapps-js').ethbase;
 var Transaction = ethbase.Transaction;
 var Int = ethbase.Int;
 var ethValue = ethbase.Units.ethValue;
@@ -140,6 +134,53 @@ valueTX.send(privkeyFrom, addressTo).then(function(txResult) {
   // txResult.message is either "Success!" or an error message
   // For this transaction, the error would be about insufficient balance.
 });
+```
+
+#### Grant ether (not on the Ethereum network)
+
+```js
+var lib = require('blockapps-js');
+var faucet = lib.routes.faucet;
+var Account = lib.ethbase.Account;
+var addressTo = "16ae8aaf39a18a3035c7bf71f14c507eda83d3e3";
+
+faucet(addressTo).get("address").then(Account).get("balance").
+then(function(balance) {
+  // Work with the bignum balance
+})
+```
+
+#### Create a new random address and private key and use them
+
+```js
+var lib = require('blockapps-js');
+
+// None of these functions use the blockchain; it's all just local crypto.
+var PrivateKey = lib.ethbase.Crypto.PrivateKey;
+
+var pkey = PrivateKey.random();
+var mnemonic = pkey.toMnemonic();
+// Sample mnemonic:
+// 'loser feed dart peel dress came social fragile worthless haunt darkness team mask action worship skin dwell team wander fault peel touch nerve certain'
+// Recover the private key using PrivateKey.fromMnemonic(<mnemonic>)
+
+var addr = pkey.toAddress();
+
+// Now you can use this address/key with the blockchain functions as above
+var faucet = lib.routes.faucet;
+var Account = lib.ethbase.Account;
+var Transaction = lib.ethbase.Transaction;
+var Units = lib.ethbase.Units;
+var addressTo = "16ae8aaf39a18a3035c7bf71f14c507eda83d3e3";
+
+faucet(addr).get("address").then(Account).get("balance").
+then(function(balance) {
+  // Units.convertEth(balance).from("wei").to("ether").toString() === "1000"
+}).
+then(function() {
+  return Transaction({value: Units.ethValue(1).in("ether")}).send(pkey, addressTo);
+}).
+then(function(txResult) { ... })
 ```
 
 #### Compile Solidity code
@@ -157,12 +198,34 @@ then(function(solObj) {
   // solObj.xabi has more information than you could possibly want about the
   // global variables and functions defined in the code.
 
-  // solObj.name is the name of the contrat, i.e. "C"
+  // solObj.name is the name of the contract, i.e. "C"
 
   // solObj.code is the code itself.
 }).catch(function(err) {
   // err is the compiler error if the code is malformed.
 })
+```
+
+You can also compile from a file, even one with imports:
+
+```js
+// Base.sol:
+// contract B { int x = -2; }
+
+// Derived.sol:
+// import {B as Base} from "Base.sol";
+// contract C is Base { string s = "Hello, world!"; }
+
+Solidity({
+  main: {
+    "Derived.sol": undefined
+  },
+  import: {
+    "Base.sol": undefined
+  },
+}).get("Derived").get("C").then(function(solObj) {
+  // Use the solObj as above
+});
 ```
 
 #### Create a Solidity contract and read its state
@@ -209,20 +272,32 @@ var contract; // Set after compilation
 
 // This sets up a call to the code's "knock" method;
 // The account owned by this private key pays the execution fees.
-function knock(n) {
-    return contract.state.knock(n).callFrom(privkey);
+function knock(c, n) {
+    return c.state.knock(n).callFrom(privkey);
 }
 
 // An example of proper promise chaining style
 Solidity(code).call("construct").call("callFrom", privkey).
-then(function(c) { contract = c; }).
-thenReturn([0,1,2,3]).
-map(knock).
-then(function(replies) {
-    replies[0] == "I couldn't hear that!";
-    replies[1] == "Okay, okay!";
-    // etc.
-    contract.state.knocks == 6; 
+then(function(c) { 
+  return knock(c, 0).
+  then(function(reply) {
+      // reply == "I couldn't hear that!";
+  }).
+  then(function() {
+      return knock(c, 1);
+  }).
+  then(function(reply){
+      // reply == "Okay, okay!";
+  }).
+  then(function() {
+      return knock(c, 2);
+  }).
+  then(function() {
+      return c.state.knocks;
+  }).
+  then(function(k) {
+      // k == 3; 
+  });
 });
 ```
 
