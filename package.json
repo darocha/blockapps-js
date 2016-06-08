@@ -51,13 +51,16 @@
     },
     "devDependencies": {
         "browserify": "^11.0.1",
-        "browser-request": "",
-        "minify" : ""
+        "browser-request": "^0.3.3 ",
+        "minify" : "^2.0.0",
+        "uglify-js": "^2.6.2"
     },
     "scripts": {
         "build": "npm run browserify && npm run minify",
+        "build2": "npm run browserify && npm run uglify",
         "browserify": "browserify -r .:blockapps-js -r bluebird -o dist/blockapps.js",
-        "minify": "minify dist/blockapps.js >dist/blockapps-min.js"
+        "minify": "minify dist/blockapps.js >dist/blockapps-min.js",
+        "uglify": "./node_modules/uglify-js/bin/uglifyjs --mangle -- dist/blockapps.js > dist/blockapps-min.js"
     },
     "browser" : {
         "request" : "browser-request",

@@ -15,3 +15,6 @@ module.exports.MultiTX = require("./js/MultiTX.js");
 module.exports.setProfile = require("./js/profiles.js");
 
 module.exports.setProfile("strato-dev","http://strato-dev4.blockapps.net","1.2");
+
+var pkg = require("./package.json");
+module.exports.version = pkg.version;
