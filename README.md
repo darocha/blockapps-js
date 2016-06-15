@@ -372,6 +372,8 @@ currently one of:
    Ethereum network with reasonable defaults given those of the
    official Ethereum clients.
 
+ - "ethereum": A reference to "ethereum-frontier".
+
 In the present version of `blockapps-js`, the library uses the
 BlockApps API routes version 1.1, which is incompatible with version
 1.0 in the `/solc` and `/extabi` routes.  Therefore, this library
