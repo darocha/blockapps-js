@@ -37,6 +37,7 @@ var profiles = {
         "pollTimeoutMS" : 60000,
         "gasPrice" : ethValue(50).in("gwei"),
         "gasLimit" : 1e6
-    }
+    },
 };
+profiles["ethereum"] = profiles["ethereum-frontier"];
 module.exports.profiles = profiles;
