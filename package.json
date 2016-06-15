@@ -1,6 +1,6 @@
 {
     "name": "blockapps-js",
-    "version": "3.1.1",
+    "version": "3.1.2",
     "description": "Interface to the Ethereum blockchain providing contract creation and transactions, state inspection, and dApp registration and management",
     "keywords": [
         "ethereum",
