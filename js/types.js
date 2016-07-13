@@ -1,3 +1,5 @@
+"use strict";
+
 function extendType(x, y) {
     var pType = Object.getPrototypeOf(x);
     var yProps = getDescriptors(y);

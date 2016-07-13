@@ -1,3 +1,5 @@
+"use strict";
+
 var Int = require("./Int.js");
 var errors = require("./errors.js");
 

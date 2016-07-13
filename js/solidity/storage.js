@@ -1,3 +1,5 @@
+"use strict";
+
 var Address = require("../Address.js");
 var Int = require("../Int.js");
 var util = require("./util.js");
@@ -5,18 +7,18 @@ var util = require("./util.js");
 function readStorageVar(varDef, storage) {
     var type = varDef["type"];
     switch(type) {
-    case "Address": case "Contract":
-        return simpleBuf(varDef, storage).then(Address);
-    case "Bool":
-        return simpleBuf(varDef, storage).get(0).then(function(x) {return x==1;});
-    case "Bytes":
-        return readBytes(varDef, storage);
-    case "Enum":
-        return simpleBuf(varDef, storage).then(varDef.names.get.bind(varDef.names));
-    case "Int":
-        return simpleBuf(varDef, storage).then(util.castInt.bind(null, varDef));
-    case "String":
-        return readBytes(varDef, storage).call("toString", "utf8");
+        case "Address": case "Contract":
+            return simpleBuf(varDef, storage).then(Address);
+        case "Bool":
+            return simpleBuf(varDef, storage).get(0).then(function(x) {return x==1;});
+        case "Bytes":
+            return readBytes(varDef, storage);
+        case "Enum":
+            return simpleBuf(varDef, storage).then(varDef.names.get.bind(varDef.names));
+        case "Int":
+            return simpleBuf(varDef, storage).then(util.castInt.bind(null, varDef));
+        case "String":
+            return readBytes(varDef, storage).call("toString", "utf8");
     }
 }
 

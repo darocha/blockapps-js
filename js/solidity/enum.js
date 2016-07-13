@@ -1,3 +1,5 @@
+"use strict";
+
 var Int = require("../Int.js");
 var nodeEnum = require('enum');
 

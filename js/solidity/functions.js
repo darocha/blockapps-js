@@ -1,8 +1,9 @@
+"use strict";
+
 var Int = require("../Int.js");
 var Transaction = require("../Transaction.js");
 var util = require("./util.js");
 var errors = require("../errors.js");
-var Enum = require("./enum.js");
 
 function solMethod(typesDef, funcDef, name) {
     var vals = funcDef["vals"];
@@ -84,12 +85,12 @@ function callFrom(from) {
     return tx.send(from).get("response").then(function(r) {
         var result = decodeReturn(tx._ret, r);
         switch (result.length) {
-        case 0:
-            return null;
-        case 1:
-            return result[0];
-        default:
-            return result;
+            case 0:
+                return null;
+            case 1:
+                return result[0];
+            default:
+                return result;
         }
     });
 }
@@ -105,78 +106,78 @@ function funcArgs(selector, argsList, x) {
 
 function funcArg(varDef, y) {
     switch (varDef["type"]) {
-    case "Enum":
-        y = Int(y.value);
+        case "Enum":
+            y = Int(y.value);
         // Fall through!
-    case "Address": case "Int":
-        return y.toEthABI();
-    case "Bool":
-        var result = y ? "01" : "00";
-        for (var i = 0; i < 31; ++i) {
-            result = "00" + result;
-        }
-        return result;
-    case "String":
-        y = new Buffer(y, "utf8");
+        case "Address": case "Int":
+            return y.toEthABI();
+        case "Bool":
+            var result = y ? "01" : "00";
+            for (var i = 0; i < 31; ++i) {
+                result = "00" + result;
+            }
+            return result;
+        case "String":
+            y = new Buffer(y, "utf8");
         // Fall through!
-    case "Bytes":
-        var result = y.toString("hex");
-        while (result.length % 64 != 0) {
-            result = result + "00";
-        }
+        case "Bytes":
+            var result = y.toString("hex");
+            while (result.length % 64 != 0) {
+                result = result + "00";
+            }
 
-        if (varDef.dynamic) {
-            var len = Int(y.length).toEthABI();
-            result = len + result;
-        }
+            if (varDef.dynamic) {
+                var len = Int(y.length).toEthABI();
+                result = len + result;
+            }
         
-        return result;
-    case "Array":
-        var entries = varDef["entries"];
-        if (entries === undefined) {
-            entries = [];
-            var entry = varDef["entry"];
-            for (var i = 0; i < y.length; ++i) {
-                entries.push(entry);
+            return result;
+        case "Array":
+            var entries = varDef["entries"];
+            if (entries === undefined) {
+                entries = [];
+                var entry = varDef["entry"];
+                for (var i = 0; i < y.length; ++i) {
+                    entries.push(entry);
+                }
             }
-        }
 
-        var totalHeadLength = 0;
-        var head = [];
-        var tail = [];
-        y.forEach(function(obj, i) {
-            totalHeadLength += 32; // Bytes, not nibbles
-            var entry = entries[i];
-            var enc = funcArg(entry, obj);
-            if (entry.dynamic) {
-                head.push(undefined);
-                tail.push(enc);
-            }
-            else {
-                head.push(enc);
-                tail.push("");
-            }
-        })
+            var totalHeadLength = 0;
+            var head = [];
+            var tail = [];
+            y.forEach(function(obj, i) {
+                totalHeadLength += 32; // Bytes, not nibbles
+                var entry = entries[i];
+                var enc = funcArg(entry, obj);
+                if (entry.dynamic) {
+                    head.push(undefined);
+                    tail.push(enc);
+                }
+                else {
+                    head.push(enc);
+                    tail.push("");
+                }
+            })
 
-        var currentTailLength = 0;
-        head = head.map(function(z, i) {
-            var lastTailLength = currentTailLength;
-            currentTailLength += tail[i].length/2;
-            if (z === undefined) {
-                return Int(totalHeadLength + lastTailLength).toEthABI();
-            }
-            else {
-                return z;
-            }
-        });
+            var currentTailLength = 0;
+            head = head.map(function(z, i) {
+                var lastTailLength = currentTailLength;
+                currentTailLength += tail[i].length/2;
+                if (z === undefined) {
+                    return Int(totalHeadLength + lastTailLength).toEthABI();
+                }
+                else {
+                    return z;
+                }
+            });
 
-        var enc = head.join("") + tail.join("");
-        if (varDef.dynamic) {
-            len = Int(y.length).toEthABI();
-            enc = len + enc
-        }
+            var enc = head.join("") + tail.join("");
+            if (varDef.dynamic) {
+                len = Int(y.length).toEthABI();
+                enc = len + enc
+            }
 
-        return enc;
+            return enc;
     }
 }
 
@@ -213,67 +214,67 @@ function decodeReturn(valsDef, x) {
         var result;
         var after = function(x) { return x; };
         switch (valDef["type"]) {
-        case "Address":
-            result = new Buffer(20);
-            result.write(x.slice(24),0,20,"hex"); // 24 = 2*(32 - 20)
-            toSlice = 64;
-            break;
-        case "Bool":
-            result = (x.slice(63,64) === '1');
-            toSlice = 64;
-            break;
-        case "String":
-            after = function(buf) { return buf.toString("utf8"); };
+            case "Address":
+                result = new Buffer(20);
+                result.write(x.slice(24),0,20,"hex"); // 24 = 2*(32 - 20)
+                toSlice = 64;
+                break;
+            case "Bool":
+                result = (x.slice(63,64) === '1');
+                toSlice = 64;
+                break;
+            case "String":
+                after = function(buf) { return buf.toString("utf8"); };
             // Fall through!
-        case "Bytes":
-            var length = getLength(valDef);
-            var roundLength = 32 * Math.ceil(length/32); // Rounded up
+            case "Bytes":
+                var length = getLength(valDef);
+                var roundLength = 32 * Math.ceil(length/32); // Rounded up
 
-            result = new Buffer(length);
-            result.write(x,0,length,"hex");
-            toSlice = 2 * roundLength;
-            break;
-        case "Enum":
-            after = valDef.names.get.bind(valDef.names);
+                result = new Buffer(length);
+                result.write(x,0,length,"hex");
+                toSlice = 2 * roundLength;
+                break;
+            case "Enum":
+                after = valDef.names.get.bind(valDef.names);
             // Fall through!
-        case "Int":
-            result = util.castInt(valDef, grabInt());
-            break;
-        case "Array":
-            var length = getLength(valDef);
-            toSlice = 0; // Handled by the entries
+            case "Int":
+                result = util.castInt(valDef, grabInt());
+                break;
+            case "Array":
+                var length = getLength(valDef);
+                toSlice = 0; // Handled by the entries
             
-            result = [];
-            after = function(arr) {
-                var entries;
-                if ("entries" in valDef) {
-                    entries = util.entriesToList(valDef["entries"]);
-                }
-                else {
-                    entries = [];
-                    var entry = valDef["entry"];
-                    for (var i = 0; i < length; ++i) {
-                        entries.push(entry);
-                    }
-                }
-
-                for (var i = 0; i < length; ++i) {
-                    var entry = entries[i];
-                    if (entry.dynamic) {
-                        // Skip to the tail; the next dynamic entry is at the front of it
-                        var toSkip = (length - i) * 64;
-                        var xPrefix = x.slice(0, toSkip);
-                        x = x.slice(toSkip);
-                        arr.push(go(entry));
-                        x = xPrefix.slice(64) + x; // Remove the head for this entry
+                result = [];
+                after = function(arr) {
+                    var entries;
+                    if ("entries" in valDef) {
+                        entries = util.entriesToList(valDef["entries"]);
                     }
                     else {
-                        arr.push(go(entry));
+                        entries = [];
+                        var entry = valDef["entry"];
+                        for (var i = 0; i < length; ++i) {
+                            entries.push(entry);
+                        }
                     }
+
+                    for (var i = 0; i < length; ++i) {
+                        var entry = entries[i];
+                        if (entry.dynamic) {
+                        // Skip to the tail; the next dynamic entry is at the front of it
+                            var toSkip = (length - i) * 64;
+                            var xPrefix = x.slice(0, toSkip);
+                            x = x.slice(toSkip);
+                            arr.push(go(entry));
+                            x = xPrefix.slice(64) + x; // Remove the head for this entry
+                        }
+                        else {
+                            arr.push(go(entry));
+                        }
+                    }
+                    return arr;
                 }
-                return arr;
-            }
-            break;
+                break;
         }
         x = x.slice(toSlice);
         toSlice = undefined;

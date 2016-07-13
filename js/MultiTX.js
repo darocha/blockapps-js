@@ -1,6 +1,5 @@
-var Address = require("./Address.js");
-var Account = require("./Account.js");
-var Solidiy = require("./Solidity.js");
+"use strict";
+
 var encodingLength = require("./solidity/util.js").encodingLength;
 var decodeReturn = require("./solidity/functions.js").decodeReturn;
 var Transaction = require("./Transaction.js");

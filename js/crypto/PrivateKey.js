@@ -1,3 +1,5 @@
+"use strict";
+
 var randomBytes = require('randombytes');
 var Address = require("../Address.js");
 var Int = require("../Int.js");
@@ -45,34 +47,34 @@ var pkeyDescrs = {
     },
     sign: {
         value: function(data) {
-          try {
-            data = new Buffer(data, "hex");
-            var ecSig = ec.keyFromPrivate(this).sign(data);
-            return {
-                r: Int(ecSig.r),
-                s: Int(ecSig.s),
-                v: ecSig.recoveryParam + 27
-            };
-          }
+            try {
+                data = new Buffer(data, "hex");
+                var ecSig = ec.keyFromPrivate(this).sign(data);
+                return {
+                    r: Int(ecSig.r),
+                    s: Int(ecSig.s),
+                    v: ecSig.recoveryParam + 27
+                };
+            }
           catch (e) {
-            errors.pushTag("PrivateKey")(e);
+              errors.pushTag("PrivateKey")(e);
           }
         },
         enumerable: true
     },
     verify: {
         value: function(data, signature) {
-          try {
-            data = new Buffer(data, "hex");
-            signature = {
-              r: signature.r.toString(),
-              s: signature.s.toString(),
-              recoveryParam: signature.v - 27
-            };
-            return ec.keyFromPrivate(this).verify(data, signature);
-          }
+            try {
+                data = new Buffer(data, "hex");
+                signature = {
+                    r: signature.r.toString(),
+                    s: signature.s.toString(),
+                    recoveryParam: signature.v - 27
+                };
+                return ec.keyFromPrivate(this).verify(data, signature);
+            }
           catch (e) {
-            errors.pushTag("PrivateKey")(e);
+              errors.pushTag("PrivateKey")(e);
           } 
         }
     }
@@ -139,11 +141,11 @@ PrivateKey.fromMnemonic = function(m) {
     return PrivateKey(mnemonic.decode(m.split(" ")));
 }
 PrivateKey.random = function() {
-  var result;
-  do {
-    result = randomBytes(32);
-  } while (!privateKeyVerify(result));
-  return PrivateKey(result);
+    var result;
+    do {
+        result = randomBytes(32);
+    } while (!privateKeyVerify(result));
+    return PrivateKey(result);
 }
 
 function pubKeyToAddress(pubKey) {
@@ -152,6 +154,6 @@ function pubKeyToAddress(pubKey) {
 }
 
 function privateKeyVerify(x) {
-     x = Int(x);
-     return x.gt(0) && x.lt(curveN);
+    x = Int(x);
+    return x.gt(0) && x.lt(curveN);
 }

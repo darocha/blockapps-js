@@ -1,3 +1,5 @@
+"use strict";
+
 var ethValue = require("./Units.js").ethValue;
 var polling = require("./routes/pollPromise.js").defaults;
 var txParams = require("./Transaction.js").defaults;

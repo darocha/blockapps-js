@@ -1,3 +1,5 @@
+"use strict";
+
 var rlp = require('rlp');
 var Crypto = require("./Crypto.js");
 var sha3 = Crypto.keccak256;

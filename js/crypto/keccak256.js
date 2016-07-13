@@ -1,3 +1,5 @@
+"use strict";
+
 var keccak256 = require('js-sha3').keccak_256;
 
 module.exports = sha3;

@@ -1,3 +1,5 @@
+"use strict";
+
 var accountQuery = require("./Routes.js").accountAddress;
 var Address = require("./Address.js");
 var Int = require("./Int.js");

@@ -2,6 +2,8 @@ var Promise = require("bluebird");
 var request = Promise.promisify(require("request"), {multiArgs: true});
 var errors = require("./errors.js");
 
+"use strict";
+
 module.exports = HTTPQuery;
 
 var defaults = {};
@@ -26,29 +28,28 @@ function HTTPQuery(queryPath, params) {
         }
         var method = Object.keys(params)[0];
         var optionsField;
-        var paramsField;
         var optionsFn;
         switch (method) {
-        case "get":
-            options.method = "GET";
-            optionsField = "qs";
-            break;
-        case "post":
-            options.method = "POST";
-            optionsField = "form";
-            break;
-        case "data":
-            options.method = "POST";
-            optionsField = "body";
-            optionsFn = JSON.stringify;
-            options.headers["content-type"] = "application/json"
-            break;
-        case "postData":
-            options.method = "POST";
-            optionsField = "formData";
-            break;
-        default:
-            throw new Error(paramsError);
+            case "get":
+                options.method = "GET";
+                optionsField = "qs";
+                break;
+            case "post":
+                options.method = "POST";
+                optionsField = "form";
+                break;
+            case "data":
+                options.method = "POST";
+                optionsField = "body";
+                optionsFn = JSON.stringify;
+                options.headers["content-type"] = "application/json"
+                break;
+            case "postData":
+                options.method = "POST";
+                optionsField = "formData";
+                break;
+            default:
+                throw new Error(paramsError);
         }
         options[optionsField] = (optionsFn || function(x){return x;})(params[method]);
     }

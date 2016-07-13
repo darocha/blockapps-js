@@ -1,3 +1,5 @@
+"use strict";
+
 var solidity = require("./routes/solidity.js");
 var bloc = require("./routes/bloc.js");
 var transactions = require("./routes/transactions.js");

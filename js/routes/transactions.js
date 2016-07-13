@@ -1,3 +1,5 @@
+"use strict";
+
 var HTTPQuery = require("../HTTPQuery.js");
 var Promise = require('bluebird');
 var Address = require("../Address.js");
@@ -15,7 +17,7 @@ function faucet(address) {
     }
     return HTTPQuery("/faucet", {"post": {"address" : addr}}).
         then(pollPromise.bind(null, accountAddress.bind(null, addr))).
-        catch(Promise.TimeoutError, function(e) {
+        catch(Promise.TimeoutError, function(_) {
             throw new Error(
                 "waited " + pollPromise.defaults.pollTimeoutMS / 1000 + " seconds"
             );

@@ -1,8 +1,9 @@
+"use strict";
+
 var storageQuery = require("./Routes.js").storage;
 var Int = require("./Int.js");
 var Address = require("./Address.js");
 var errors = require("./errors.js");
-var extendType = require("./types.js").extendType;
 
 module.exports = Storage;
 function Storage(address) {
@@ -37,10 +38,10 @@ function getRange(start, bytes) {
     var starti = start.mod(32).valueOf();
     var length = last.plus(1).minus(first).times(32).valueOf()
     return storageQuery({
-            "minkey":first.toString(10),
-            "maxkey":last.toString(10),
-            "address":this.address
-        }).
+        "minkey":first.toString(10),
+        "maxkey":last.toString(10),
+        "address":this.address
+    }).
         catch(errors.matchTag("NotDone"), function() {
             return [];
         }).
@@ -66,11 +67,11 @@ function getRange(start, bytes) {
         tagExcepts("Storage");        
 }
 
-function pushZeros(output, count) {
-    for (var i = 0; i < count; ++i) {
-        output.push(EthWord(0));
-    }
-}
+// function pushZeros(output, count) {
+//     for (var i = 0; i < count; ++i) {
+//         output.push(EthWord(0));
+//     }
+// }
 
 module.exports.Word = EthWord;
 var ethWordDescrs = {

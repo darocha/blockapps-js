@@ -1,3 +1,5 @@
+"use strict";
+
 var HTTPQuery = require("../HTTPQuery.js");
 var Promise = require('bluebird');
 var Address = require("../Address.js");

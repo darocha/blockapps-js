@@ -1,3 +1,5 @@
+"use strict";
+
 var fs = require("fs");
 var errors = require("../errors.js");
 module.exports = streamFile;
@@ -8,14 +10,14 @@ function streamFile(name, maybeContents) {
                         "'" + name.constructor.name + "'");
     }
     switch (typeof maybeContents) {
-    case "undefined" :
-        return fs.createReadStream(name);
-    case "string":
-        return {
-            value: maybeContents,
-            options: {
-                filename: path.basename(name, ".sol")
+        case "undefined" :
+            return fs.createReadStream(name);
+        case "string":
+            return {
+                value: maybeContents,
+                options: {
+                    filename: path.basename(name, ".sol")
+                }
             }
-        }
     }
 }

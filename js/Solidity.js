@@ -1,3 +1,5 @@
+"use strict";
+
 var routes = require("./Routes.js");
 var solc = routes.solc;
 var extabi = routes.extabi;
@@ -33,12 +35,12 @@ function Solidity(x) {
         var code = "";
         var dataObj = {};
         switch (typeof x) {
-        case "string" :
-            code = x;
-            break;
-        case "object" :
-            dataObj = x;
-            break;
+            case "string" :
+                code = x;
+                break;
+            case "object" :
+                dataObj = x;
+                break;
         }
         var solcR = solc(code, dataObj);
         var xabiR = extabi(code, dataObj);
@@ -58,7 +60,7 @@ function Solidity(x) {
                         makeSolidity(xabi, bin, contract);
                 }
                 files[file] = contracts;
-            };
+            }
             // Backwards compatibility
             if (Object.keys(files).length === 1 &&
                 Object.keys(files)[0] === "src" &&
@@ -211,100 +213,100 @@ function attach(solObj) {
 
 function makeSolObject(typeDefs, varDef, storage) {
     switch (varDef.type) {
-    case "Mapping":
-        var mapLoc = Int(Int(varDef["atBytes"]).over(32)).toEthABI();
-        var keyType = varDef["key"];
-        var valType = varDef["value"];
-        util.setTypedefs(typeDefs, {key: keyType});
-        util.setTypedefs(typeDefs, {val: valType});
+        case "Mapping":
+            var mapLoc = Int(Int(varDef["atBytes"]).over(32)).toEthABI();
+            var keyType = varDef["key"];
+            var valType = varDef["value"];
+            util.setTypedefs(typeDefs, {key: keyType});
+            util.setTypedefs(typeDefs, {val: valType});
         
-        var result = function(x) {
-            try {
-                var arg = util.readInput(typeDefs, keyType, x);
-                var keyBytes;
-                switch (keyType["type"]) {
-                case "Address":
-                    keyBytes = arg.toEthABI();
-                    break;
-                case "Bool":
-                    keyBytes = Int(arg ? 1 : 0).toEthABI();
-                case "Int":
-                    keyBytes = arg.toEthABI();
-                    break;
-                case "Bytes":
-                    if (!keyType.dynamic) {
-                        var result = arg.toString("hex");
-                        while (result.length < 64) { // nibbles
-                            result = "00" + result;
-                        }
-                        keyBytes = result;
+            var result = function(x) {
+                try {
+                    var arg = util.readInput(typeDefs, keyType, x);
+                    var keyBytes;
+                    switch (keyType["type"]) {
+                        case "Address":
+                            keyBytes = arg.toEthABI();
+                            break;
+                        case "Bool":
+                            keyBytes = Int(arg ? 1 : 0).toEthABI();
+                        case "Int":
+                            keyBytes = arg.toEthABI();
+                            break;
+                        case "Bytes":
+                            if (!keyType.dynamic) {
+                                var result = arg.toString("hex");
+                                while (result.length < 64) { // nibbles
+                                    result = "00" + result;
+                                }
+                                keyBytes = result;
+                            }
                     }
-                }
 
-                var valueCopy = {}
-                for (var p in valType) {
-                    valueCopy[p] = valType[p];
+                    var valueCopy = {}
+                    for (var p in valType) {
+                        valueCopy[p] = valType[p];
+                    }
+                    valueCopy["atBytes"] = util.dynamicLoc(keyBytes + mapLoc);
+                    return makeSolObject(typeDefs, valueCopy, storage);
                 }
-                valueCopy["atBytes"] = util.dynamicLoc(keyBytes + mapLoc);
-                return makeSolObject(typeDefs, valueCopy, storage);
-            }
             catch(e) {
                 errors.pushTag("Mapping")(e);
             }
-        };
-        result.toJSON = function() {
-            return "mapping (" + keyType.type + " => " + valType.type + ")";
-        }
-        return result;
-    case "Array":
-        return Promise.try(function() {
-            if (varDef.dynamic) {
-                return util.dynamicDef(varDef,storage);
+            };
+            result.toJSON = function() {
+                return "mapping (" + keyType.type + " => " + valType.type + ")";
             }
-            else {
-                return [Int(varDef.atBytes), varDef.length];
-            }                        
-        }).spread(function(atBytes, lengthBytes) {
-            var numEntries = Int(lengthBytes).valueOf();
-            var entryDef = varDef["entry"];
-            util.setTypedefs(typeDefs, {entry: entryDef});
-            var entrySize = util.objectSize(entryDef, typeDefs);
+            return result;
+        case "Array":
+            return Promise.try(function() {
+                if (varDef.dynamic) {
+                    return util.dynamicDef(varDef,storage);
+                }
+                else {
+                    return [Int(varDef.atBytes), varDef.length];
+                }                        
+            }).spread(function(atBytes, lengthBytes) {
+                var numEntries = Int(lengthBytes).valueOf();
+                var entryDef = varDef["entry"];
+                util.setTypedefs(typeDefs, {entry: entryDef});
+                var entrySize = util.objectSize(entryDef, typeDefs);
 
-            var entryCopy = {}
-            for (var p in entryDef) {
-                entryCopy[p] = entryDef[p];
-            }
+                var entryCopy = {}
+                for (var p in entryDef) {
+                    entryCopy[p] = entryDef[p];
+                }
 
-            var result = [];
-            atBytes = util.fitObjectStart(atBytes, 32); // Artificially align
-            while (result.length < numEntries) {
-                entryCopy["atBytes"] = util.fitObjectStart(atBytes, entrySize);
-                result.push(makeSolObject(typeDefs, entryCopy, storage));
-                atBytes = entryCopy["atBytes"].plus(entrySize);
-            }
-            return Promise.all(result);                
-        });
-    case "Struct":
-        var userName = varDef["typedef"];
-        var typeDef = typeDefs[userName];
-        var fields = typeDef["fields"];
-        util.setTypedefs(typeDefs, fields);
+                var result = [];
+                atBytes = util.fitObjectStart(atBytes, 32); // Artificially align
+                while (result.length < numEntries) {
+                    entryCopy["atBytes"] = util.fitObjectStart(atBytes, entrySize);
+                    result.push(makeSolObject(typeDefs, entryCopy, storage));
+                    atBytes = entryCopy["atBytes"].plus(entrySize);
+                }
+                return Promise.all(result);                
+            });
+        case "Struct":
+            var userName = varDef["typedef"];
+            var typeDef = typeDefs[userName];
+            var fields = typeDef["fields"];
+            util.setTypedefs(typeDefs, fields);
         // Artificially align
-        var baseKey = util.fitObjectStart(varDef["atBytes"], 32);
+            var baseKey = util.fitObjectStart(varDef["atBytes"], 32);
 
-        var result = {};
-        for (var name in fields) {
-            var field = fields[name];
-            var fieldCopy = {};
-            for (var p in field) {
-                fieldCopy[p] = field[p];
+            var result = {};
+            for (var name in fields) {
+                var field = fields[name];
+                var fieldCopy = {};
+                for (var p in field) {
+                    fieldCopy[p] = field[p];
+                }
+                var fieldOffset = Int(field["atBytes"]);
+                fieldCopy["atBytes"] = baseKey.plus(fieldOffset);
+                result[name] = makeSolObject(typeDefs, fieldCopy, storage);
             }
-            var fieldOffset = Int(field["atBytes"]);
-            fieldCopy["atBytes"] = baseKey.plus(fieldOffset);
-            result[name] = makeSolObject(typeDefs, fieldCopy, storage);
-        }
-        return Promise.props(result);
-    default:
-        return readStorageVar(varDef, storage);
+            return Promise.props(result);
+        default:
+            return readStorageVar(varDef, storage);
     }
 }

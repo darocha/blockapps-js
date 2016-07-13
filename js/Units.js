@@ -22,6 +22,8 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+"use strict";
+
 var Int = require("./Int.js")
 var bigNum = require('bignumber.js');
 
@@ -58,7 +60,7 @@ function ethValue(x) {
 module.exports.convertEth = convert;
 function convert (n,d) {
     return new Converter(n,d);
-};
+}
 
 var ethereum = {
     wei     : {
@@ -127,7 +129,7 @@ function Converter(numerator, denominator) {
     else {
         this.val = new bigNum(n);
     }
-};
+}
 
 /**
  * Lets the converter know the source unit abbreviation
@@ -178,7 +180,7 @@ Converter.prototype.to = function (to) {
     /**
      * Convert to another unit inside the destination system
      */
-    var intModulus = new bigNum(2).pow(256);
+    //var intModulus = new bigNum(2).pow(256);
     return result.div(this.destination.unit.to_anchor);
 
 };
@@ -187,8 +189,8 @@ Converter.prototype.to = function (to) {
  * Finds the unit
  */
 Converter.prototype.getUnit = function (abbr) {
-    for (scheme in schemes) {
-        for (testAbbr in schemes[scheme]) {
+    for (var scheme in schemes) {
+        for (var testAbbr in schemes[scheme]) {
             if(testAbbr == abbr) {
                 return {
                     "scheme": scheme,

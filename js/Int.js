@@ -1,3 +1,5 @@
+"use strict";
+
 var bigInt = require('bn.js');
 var errors = require("./errors.js");
 
@@ -126,7 +128,7 @@ function chooseNumeric(baseName) {
     return function(n) {
         var fn = baseName;
         if (typeof n === "number") {
-          fn = baseName + "n";
+            fn = baseName + "n";
         }
         return Int(this[fn](n));
     }
@@ -136,7 +138,7 @@ var i256 = Int(2).pow(256);
 
 Int.uintSized = uintSized;
 
-function uintSized(x, radix) {
+function uintSized(x, _) {
     return Int(x).mod(i256);
 }
 
