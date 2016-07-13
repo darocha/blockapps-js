@@ -1,6 +1,9 @@
 *~
 dist/*
 
+# OSX trash
+.DS_Store
+
 # Logs
 logs
 *.log
