@@ -6,13 +6,13 @@ var errors = require("../errors.js");
 
 function prepPostData (dataObj) {
     var postDataObj = {};
-    
+
     dataObjOpts = dataObj.options;
     for (opt in dataObjOpts) {
         postDataObj[opt] = dataObjOpts[opt];
     }
     delete dataObj.options;
-    
+
     for (name in dataObj) {
         postDataNameArr = [];
         dataObjName = dataObj[name];
@@ -43,7 +43,13 @@ function solcCommon(tag, code, dataObj) {
         errors.pushTag(tag)(e);
     }
 
-    return HTTPQuery(route, postData).tagExcepts(tag);
+    return HTTPQuery(route, postData).tagExcepts(tag).then(function(resp){
+      if(resp.hasOwnProperty("missingImport")){
+          postData.import[resp["missingImport"]] = undefined;
+          return HTTPQuery(route, postData).tagExcepts(tag);
+      }
+
+    });
 }
 
 // solc(code :: string, {
