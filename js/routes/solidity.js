@@ -2,6 +2,7 @@ var HTTPQuery = require("../HTTPQuery.js");
 var Promise = require('bluebird');
 var path = require("path");
 var streamFile = require("./readfile.js");
+var fs = require('fs');
 var errors = require("../errors.js");
 
 function prepPostData (dataObj) {
@@ -12,12 +13,11 @@ function prepPostData (dataObj) {
         postDataObj[opt] = dataObjOpts[opt];
     }
     delete dataObj.options;
-
     for (name in dataObj) {
         postDataNameArr = [];
         dataObjName = dataObj[name];
         for (fname in dataObjName) {
-            postDataNameArr.push(streamFile(fname, dataObjName[fname]));
+          postDataNameArr.push(streamFile(fname, dataObjName[fname]));
         }
         postDataObj[name] = postDataNameArr;
     }
@@ -42,13 +42,22 @@ function solcCommon(tag, code, dataObj) {
     catch(e) {
         errors.pushTag(tag)(e);
     }
+    console.log(postData);
 
-    return HTTPQuery(route, postData).tagExcepts(tag).then(function(resp){
+    return HTTPQuery(route, postData).tagExcepts(tag)
+    .then(function(resp){
+      console.log('HTTPQuery Response: =============',resp);
       if(resp.hasOwnProperty("missingImport")){
-          postData.import[resp["missingImport"]] = undefined;
-          return HTTPQuery(route, postData).tagExcepts(tag);
+        if(!dataObj.hasOwnProperty("import")){
+          dataObj.import = {};
+        }
+        dataObj.import[resp["missingImport"]] = undefined;
+        postData = prepPostData(dataObj);
+        return HTTPQuery(route, postData).tagExcepts(tag);
       }
-
+      else {
+        return resp;
+      }
     });
 }
 
