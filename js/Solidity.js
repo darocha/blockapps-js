@@ -40,14 +40,25 @@ function Solidity(x) {
             dataObj = x;
             break;
         }
-        var solcR = solc(code, dataObj);
-        var xabiR = extabi(code, dataObj);
+        var xabiAndsolcR = extabi(code, dataObj).then(function(xabiResp){
+          var solcCall = solc(code, xabiResp.dataObj);
+          delete xabiResp.dataObj;
+
+          return solcCall.then(function(solcResp){
+            return { xabiR:xabiResp, solcR:solcResp }
+          });
+
+        });
+
     }
     catch(e) {
         errors.pushTag("Solidity")(e);
     }
-    return Promise.
-        join(solcR, xabiR, function(solcR, xabiR) {
+    // return Promise.
+    //     join(solcR, xabiR, function(solcR, xabiR) {
+    return xabiAndsolcR.then(function(resp){
+            var solcR = resp.solcR;
+            var xabiR= resp.xabiR;
             var files = {};
             for (file in solcR) {
                 var contracts = {};
@@ -217,7 +228,7 @@ function makeSolObject(typeDefs, varDef, storage) {
         var valType = varDef["value"];
         util.setTypedefs(typeDefs, {key: keyType});
         util.setTypedefs(typeDefs, {val: valType});
-        
+
         var result = function(x) {
             try {
                 var arg = util.readInput(typeDefs, keyType, x);
@@ -263,7 +274,7 @@ function makeSolObject(typeDefs, varDef, storage) {
             }
             else {
                 return [Int(varDef.atBytes), varDef.length];
-            }                        
+            }
         }).spread(function(atBytes, lengthBytes) {
             var numEntries = Int(lengthBytes).valueOf();
             var entryDef = varDef["entry"];
@@ -282,7 +293,7 @@ function makeSolObject(typeDefs, varDef, storage) {
                 result.push(makeSolObject(typeDefs, entryCopy, storage));
                 atBytes = entryCopy["atBytes"].plus(entrySize);
             }
-            return Promise.all(result);                
+            return Promise.all(result);
         });
     case "Struct":
         var userName = varDef["typedef"];
