@@ -151,11 +151,6 @@ function constrFrom(privkey) {
     var contract = this._solObj;
     return this.send(privkey).
         get("contractsCreated").
-        tap(function(addrList){
-            if (addrList.length !== 1) {
-                throw new Error("constructor must create a single account");
-            }
-        }).
         get(0).
         then(Address).
         then(function(addr) {
