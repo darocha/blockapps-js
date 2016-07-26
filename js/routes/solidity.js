@@ -22,7 +22,6 @@ function prepPostData (dataObj) {
 
     var result = {}
     result[Object.keys(dataObj).length ? "postData" : "post"] = postDataObj;
-    console.log(result)
     return result;
 }
 
