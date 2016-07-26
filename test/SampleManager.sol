@@ -75,4 +75,8 @@ contract SampleManager is Owned, Sample {
     function get5(uint sampleType, uint parent, uint wellHead, uint boreHole, uint[] depth) returns (uint){
       return samples.get5(sampleType, parent, wellHead, boreHole, depth);
     }
+
+    function get6(uint sampleType, uint parent, uint wellHead, uint boreHole, uint[] depth) returns (uint){
+      return samples.get6(sampleType, parent, wellHead, boreHole, depth);
+    }
 }

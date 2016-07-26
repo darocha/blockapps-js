@@ -1,7 +1,9 @@
 var lib = require('../index.js'),
   Solidity = lib.Solidity,
   fs = require('fs');
-lib.setProfile('strato-dev', 'http://branch-120461499.centralus.cloudapp.azure.com', '1.2');
+//  lib.setProfile('strato-dev', 'http://branch-120461499.centralus.cloudapp.azure.com', '1.2');
+  lib.setProfile('strato-dev', 'http://tester4.centralus.cloudapp.azure.com', '1.2');
+  console.log('solObj: ========================', lib);
 
 // None of these functions use the blockchain; it's all just local crypto.
 var PrivateKey = lib.ethbase.Crypto.PrivateKey;
@@ -38,7 +40,7 @@ then(function(balance) {
     // contract.state.add(1,2,3,4,[7,8]).callFrom(pkey).then(function(reply){
     //   console.log(reply)
     // });
-    contract.state.get5(1,2,3,4,[7,8]).callFrom(pkey).then(function(reply){
+    contract.state.get6(1,2,3,4,[7,8]).callFrom(pkey).then(function(reply){
       console.log(reply);
     });
   });
