@@ -14,16 +14,15 @@ function prepPostData (dataObj) {
     }
     delete dataObj.options;
     for (name in dataObj) {
-        postDataNameArr = [];
         dataObjName = dataObj[name];
         for (fname in dataObjName) {
-          postDataNameArr.push(streamFile(fname, dataObjName[fname]));
+          postDataObj[name + ":" + fname] = streamFile(fname, dataObjName[fname]);
         }
-        postDataObj[name] = postDataNameArr;
     }
 
     var result = {}
     result[Object.keys(dataObj).length ? "postData" : "post"] = postDataObj;
+    console.log(result)
     return result;
 }
 
