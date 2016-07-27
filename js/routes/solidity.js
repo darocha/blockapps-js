@@ -34,46 +34,29 @@ function solcCommon(tag, code, dataObj) {
             dataObj.options = {};
         }
         dataObj.options.src = code;
+        if (!("import" in dataObj)) {
+            dataObj.import = {};
+        }
         var route = "/" + tag;
         var postData = prepPostData(dataObj);
     }
     catch(e) {
         errors.pushTag(tag)(e);
     }
-    return HTTPQuery(route, postData).tagExcepts(tag)
-    .then(function(resp){
+    return HTTPQuery(route, postData).
+    then(function(resp){
       if(resp.hasOwnProperty("missingImport")){
-        return buildImports(route, dataObj, resp, tag);
+        dataObj.import[resp["missingImport"]] = undefined;
+        return solcCommon(tag, code, dataObj);
+        // return buildImports(route, dataObj, resp);
       }
       else {
-        return resp;
-      }
-    })
-    .catch(function(e){
-
-    });
-}
-
-function buildImports(route, dataObj, resp, tag){
-  //Iteratively construct imports during extabi call.
-  if(!dataObj.hasOwnProperty("import")){
-    dataObj.import = {};
-  }
-  dataObj.import[resp["missingImport"]] = undefined;
-  postData = prepPostData(dataObj);
-
-  return HTTPQuery(route, postData).tagExcepts(tag)
-    .then(function(resp){
-      if(resp.hasOwnProperty("missingImport")){
-        return buildImports(route, dataObj, resp, tag);
-      }
-      else {
-        //return the dataObj with the
         resp.dataObj = dataObj;
         return resp;
       }
-    });
+    }).tagExcepts(tag);
 }
+
 // solc(code :: string, {
 //   main : { <name> : (undefined | code :: string) ...},
 //   import : { <name> : (undefined | code :: string) ...},
