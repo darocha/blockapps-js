@@ -3,6 +3,8 @@ var lib = require('../index.js'),
   fs = require('fs');
   lib.setProfile('strato-dev', 'http://localhost', '1.2');
 
+var Promise = require("bluebird");
+
 // None of these functions use the blockchain; it's all just local crypto.
 var PrivateKey = lib.ethbase.Crypto.PrivateKey;
 var pkey = PrivateKey.random();
@@ -38,8 +40,11 @@ then(function(balance) {
     // contract.state.add(1,2,3,4,[7,8]).callFrom(pkey).then(function(reply){
     //   console.log(reply)
     // });
-    contract.state.get6(1,2,3,4,[7,8]).callFrom(pkey).then(function(reply){
-      console.log(reply);
-    });
+
+    function f(n) {
+      return contract.state.add(1,n,3,4,[7,8]).callFrom(pkey).then(console.log);
+    }
+
+    return f(0).then(function() {return f(1);}).then(function() {return f(2);});
   });
 });

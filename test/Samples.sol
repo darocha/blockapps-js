@@ -8,7 +8,7 @@ contract Samples is Owned, Sample {
 
     function Samples() {
         data.length = 1;
-        Simple s = Simple();
+        Simple s = new Simple();
     }
 
     // todo: permissions
@@ -90,8 +90,8 @@ contract Samples is Owned, Sample {
     }
 
     function get6(uint sampleType, uint parent, uint wellHead, uint boreHole, uint[] depth) isOwned returns (uint){
-      Sample memory s = Sample(sampleType, parent, wellHead, boreHole, now, depth, tmp);
-//      Simple s = Simple();
+//      Sample memory s = Sample(sampleType, parent, wellHead, boreHole, now, depth, tmp);
+      Simple s = new Simple();
       return 6;
     }
 
