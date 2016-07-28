@@ -29,59 +29,53 @@ module.exports = Solidity;
 // If only one object given as "code", collapses to
 // { name : <contract name>, _ :: Solidity }
 function Solidity(x) {
-    try {
-        var code = "";
-        var dataObj = {};
-        switch (typeof x) {
-        case "string" :
-            code = x;
-            break;
-        case "object" :
-            dataObj = x;
-            break;
-        }
-        var xabiAndsolcR = extabi(code, dataObj).then(function(xabiResp){
-          var solcCall = solc(code, xabiResp.dataObj);
-          delete xabiResp.dataObj;
+  var code = "";
+  var dataObj = {};
+  switch (typeof x) {
+    case "string" :
+      code = x;
+      break;
+    case "object" :
+      dataObj = x;
+      break;
+  }
+  
+  return extabi(code, dataObj).
+  then(function(xabiResp){
+    var solcCall = solc(code, xabiResp.dataObj);
+    delete xabiResp.dataObj;
 
-          return solcCall.then(function(solcResp){
-            return { xabiR:xabiResp, solcR:solcResp }
-          });
-
-        });
-
+    return solcCall.then(function(solcResp){
+      delete solcResp.dataObj;
+      return { xabiR:xabiResp, solcR:solcResp }
+    });
+  }).
+  then(function(resp){
+    var solcR = resp.solcR;
+    var xabiR= resp.xabiR;
+    var files = {};
+    for (file in solcR) {
+      var contracts = {};
+      for (contract in solcR[file]) {
+        var xabi = xabiR[file][contract];
+        var bin = solcR[file][contract].bin;
+        contracts[contract] =
+    makeSolidity(xabi, bin, contract);
+      }
+      files[file] = contracts;
+    };
+    // Backwards compatibility
+    if (Object.keys(files).length === 1 &&
+      Object.keys(files)[0] === "src" &&
+      Object.keys(files.src).length == 1)
+    {
+      contract = Object.keys(files.src)[0];
+      files = files.src[contract];
+      files.name = contract;
     }
-    catch(e) {
-        errors.pushTag("Solidity")(e);
-    }
-    // return Promise.
-    //     join(solcR, xabiR, function(solcR, xabiR) {
-    return xabiAndsolcR.then(function(resp){
-            var solcR = resp.solcR;
-            var xabiR= resp.xabiR;
-            var files = {};
-            for (file in solcR) {
-                var contracts = {};
-                for (contract in solcR[file]) {
-                    var xabi = xabiR[file][contract];
-                    var bin = solcR[file][contract].bin;
-                    contracts[contract] =
-                        makeSolidity(xabi, bin, contract);
-                }
-                files[file] = contracts;
-            };
-            // Backwards compatibility
-            if (Object.keys(files).length === 1 &&
-                Object.keys(files)[0] === "src" &&
-                Object.keys(files.src).length == 1)
-            {
-                contract = Object.keys(files.src)[0];
-                files = files.src[contract];
-                files.name = contract;
-            }
-            return files;
-        }).
-        tagExcepts("Solidity");
+    return files;
+  }).
+  tagExcepts("Solidity");
 }
 Solidity.prototype = {
     "bin" : null,
