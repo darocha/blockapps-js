@@ -45,10 +45,19 @@ function solcCommon(tag, code, dataObj) {
     }
     return HTTPQuery(route, postData).
     then(function(resp){
-      if(resp.hasOwnProperty("missingImport")){
-        dataObj.import[resp["missingImport"]] = undefined;
-        return solcCommon(tag, code, dataObj);
-        // return buildImports(route, dataObj, resp);
+      if ("importError" in resp) {
+        if (resp.importError === "missingImport") {
+          dataObj.import[resp["missingImport"]] = undefined;
+          return solcCommon(tag, code, dataObj);
+        }
+        else {
+          var errorString = "Import error in file '" + resp.inFile + "': ";
+          var errorText = {
+            "importCycle" : "Import cycle found",
+            "missingSymbol" : "Symbol '" + resp.missingSymbol + "' imported from file '" + resp.fileName + "' not found"
+          };
+          throw new Error(errorString + errorText[resp.importError]);
+        }
       }
       else {
         resp.dataObj = dataObj;
