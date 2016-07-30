@@ -1,6 +1,5 @@
 var HTTPQuery = require("../HTTPQuery.js");
 var Promise = require('bluebird');
-var path = require("path");
 var streamFile = require("./readfile.js");
 var fs = require('fs');
 var errors = require("../errors.js");

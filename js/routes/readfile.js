@@ -1,4 +1,5 @@
 var fs = require("fs");
+var path = require("path");
 var errors = require("../errors.js");
 module.exports = streamFile;
 
