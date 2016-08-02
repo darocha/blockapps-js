@@ -59,8 +59,8 @@ function Solidity(x) {
       for (contract in solcR[file]) {
         var xabi = xabiR[file][contract];
         var bin = solcR[file][contract].bin;
-        contracts[contract] =
-    makeSolidity(xabi, bin, contract);
+        var binr = solcR[file][contract]["bin-runtime"];
+        contracts[contract] = makeSolidity(xabi, bin, binr, contract);
       }
       files[file] = contracts;
     };
@@ -132,7 +132,7 @@ Solidity.attach = function(x) {
     }
 }
 
-function makeSolidity(xabi, bin, contract) {
+function makeSolidity(xabi, bin, binr, contract) {
     var typesDef = xabi.types;
     for (typeName in typesDef) {
         var typeDef = typesDef[typeName];
@@ -146,6 +146,7 @@ function makeSolidity(xabi, bin, contract) {
         Solidity,
         {
             "bin": bin,
+            "bin-runtime": binr,
             "xabi": xabi,
             "name": contract
         }
