@@ -5,9 +5,9 @@ var errors = require("../errors.js");
 var Enum = require("./enum.js");
 
 function solMethod(typesDef, funcDef, name) {
-    var vals = funcDef["vals"];
+    var vals = funcDef["vals"] || {};
     util.setTypedefs(typesDef, vals);
-    var args = funcDef["args"];
+    var args = funcDef["args"] || {};
     util.setTypedefs(typesDef, args);
     var argsList = util.entriesToList(args);
     var solObj = this;
