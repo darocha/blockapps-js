@@ -4,12 +4,28 @@ var streamFile = require("./readfile.js");
 var fs = require('fs');
 var errors = require("../errors.js");
 
+var handleOpt = {
+  "link" : function(){return ""},
+  "optimize" : function(){return ""},
+  "add-std" : function(){return ""},
+  "src" : function(x){return x;},
+  "optimize-runs" : function(x){return x;},
+  "libraries" :
+    function(libObj) {
+      var libArr = [];
+      for (lib in libObj) {
+        libArr.push(lib.toString() + ":" + libObj[lib].toString());
+      }
+      return libArr.join();
+    }
+};
+
 function prepPostData (dataObj) {
     var postDataObj = {};
 
     dataObjOpts = dataObj.options;
     for (opt in dataObjOpts) {
-        postDataObj[opt] = dataObjOpts[opt];
+        postDataObj[opt] = handleOpt[opt](dataObjOpts[opt]);
     }
     delete dataObj.options;
     for (name in dataObj) {
@@ -42,6 +58,7 @@ function solcCommon(tag, code, dataObj) {
     catch(e) {
         errors.pushTag(tag)(e);
     }
+    console.log(postData)
     return HTTPQuery(route, postData).
     then(function(resp){
       if ("importError" in resp) {
