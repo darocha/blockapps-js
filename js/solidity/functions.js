@@ -51,7 +51,7 @@ function solMethod(typesDef, funcDef, name) {
         });
 
         result.txParams = txParams;
-        result.callFrom = callFrom;
+        result.callFrom = callFrom.bind(result, typesDef);
         Object.defineProperties(result, {
             "_ret" : {
                 value: {
@@ -79,10 +79,10 @@ function txParams(given) {
     return this;
 }
 
-function callFrom(from) {
+function callFrom(typesDef, from) {
     var tx = this;
     return tx.send(from).get("response").then(function(r) {
-        var result = decodeReturn(tx._ret, r);
+        var result = decodeReturn(typesDef, tx._ret, r);
         switch (result.length) {
         case 0:
             return null;
@@ -180,7 +180,7 @@ function funcArg(varDef, y) {
     }
 }
 
-function decodeReturn(valsDef, x) {
+function decodeReturn(typesDef, valsDef, x) {
     if (valsDef === undefined) {
         return null;
     }
@@ -212,6 +212,9 @@ function decodeReturn(valsDef, x) {
     function go(valDef) {
         var result;
         var after = function(x) { return x; };
+        if ("typedef" in valDef) {
+          valDef = typesDef[valDef.typedef];
+        }
         switch (valDef["type"]) {
         case "Address":
             result = new Buffer(20);
