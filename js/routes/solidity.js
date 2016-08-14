@@ -4,36 +4,39 @@ var streamFile = require("./readfile.js");
 var fs = require('fs');
 var errors = require("../errors.js");
 
-var handleOpt = {
-  "link" : function(){return ""},
-  "optimize" : function(){return ""},
-  "add-std" : function(){return ""},
-  "src" : function(x){return x;},
-  "optimize-runs" : function(x){return x;},
-  "libraries" :
-    function(libObj) {
-      var libArr = [];
-      for (lib in libObj) {
-        libArr.push(lib.toString() + ":" + libObj[lib].toString());
-      }
-      return libArr.join();
-    }
-};
+function handleOption(opt, obj, val) {
+  var optHandlers = {
+    "libraries" :
+      function(obj, val) {
+        var libArr = [];
+        for (lib in val) {
+          libArr.push(lib + ":" + val[lib]);
+        } 
+        obj.libraries = libArr.join();
+      },
+    "link" : function () {} // Disabled because it's no longer necessary
+  };
+  optHandlers[opt](obj, val);
+}
 
 function prepPostData (dataObj) {
     var postDataObj = {};
 
     dataObjOpts = dataObj.options;
     for (opt in dataObjOpts) {
-        postDataObj[opt] = handleOpt[opt](dataObjOpts[opt]);
+      try {
+        handleOption(opt, postDataObj, dataObjOpts[opt]);
+      }
+      catch (e) {
+        postDataObj[opt] = dataObjOpts[opt];
+      }
     }
-    delete dataObj.options;
-    for (name in dataObj) {
+    ["main", "import"].forEach(function(name) {
         dataObjName = dataObj[name];
         for (fname in dataObjName) {
           postDataObj[name + ":" + fname] = streamFile(fname, dataObjName[fname]);
         }
-    }
+    });
 
     var result = {}
     result[Object.keys(dataObj).length ? "postData" : "post"] = postDataObj;
@@ -58,7 +61,6 @@ function solcCommon(tag, code, dataObj) {
     catch(e) {
         errors.pushTag(tag)(e);
     }
-    console.log(postData)
     return HTTPQuery(route, postData).
     then(function(resp){
       if ("importError" in resp) {

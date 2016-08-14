@@ -52,7 +52,7 @@ function Solidity(x) {
   }).
   then(function(resp){
     var solcR = resp.solcR;
-    var xabiR= resp.xabiR;
+    var xabiR = resp.xabiR;
     var files = {};
     for (file in solcR) {
       var contracts = {};
