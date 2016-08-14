@@ -31,18 +31,25 @@ function readInput(typesDef, varDef, x) {
                 x = "0" + x;
             }
 
-            if (!varDef.dynamic) {
+            if (varDef.dynamic) {
+                return new Buffer(x, "hex");
+            }
+            else {
                 var bytes = parseInt(varDef["bytes"]);
-                if (x.length !== 2 * bytes) {
-                    throw errors.tagError(
-                        "Solidity",
-                        "bytes" + bytes + " type requires " +
-                            bytes + " bytes (" + 2*bytes + " hex digits)"
-                    );
-                }
+//                if (x.length !== 2 * bytes) {
+//                    throw errors.tagError(
+//                        "Solidity",
+//                        "bytes" + bytes + " type requires " +
+//                            bytes + " bytes (" + 2*bytes + " hex digits)"
+//                    );
+//                }
+                x = x.slice(-bytes);
+                var result = new Buffer(bytes);
+                result.fill(0);
+                result.write(x, 0, x.length, "hex");
+                return result;
             }
 
-            return new Buffer(x, "hex");
         case "Int":
             return Int(x);
         case "String":
