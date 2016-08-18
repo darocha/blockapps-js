@@ -118,13 +118,13 @@ Solidity.attach = function(x) {
         if (typeof x === "string") {
             x = JSON.parse(x);
         }
-        x = makeSolidity(x.xabi, x.bin, x.binr, x.name);
+        var result = makeSolidity(x.xabi, x.bin, x.binr, x.name);
         if (x.address) {
-            x.address = Address(x.address);
-            return attach(x);
+            result.address = Address(x.address);
+            return attach(result);
         }
         else {
-            return x;
+            return result;
         }
     }
     catch(e) {
