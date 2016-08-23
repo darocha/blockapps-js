@@ -169,11 +169,12 @@ function setTypedefs(typesDef, varsDef) {
                 }
             }
             else {
+                delete varDef.typedef;
                 varDef.type = "Address"; // Actually a contract type
             }
         }
     }
- }
+}
 
 function entriesToList(entries) {
     var result = [];
