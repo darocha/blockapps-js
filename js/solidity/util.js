@@ -169,8 +169,7 @@ function setTypedefs(typesDef, varsDef) {
                 }
             }
             else {
-                varDef.type = "Contract";
-                varDef.bytes = 20;
+                varDef.type = "Address"; // Actually a contract type
             }
         }
     }
