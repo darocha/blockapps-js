@@ -39,7 +39,7 @@ function Solidity(x) {
       dataObj = x;
       break;
   }
-  
+
   return extabi(code, dataObj).
   then(function(xabiResp){
     var solcCall = solc(code, xabiResp.dataObj);
@@ -104,6 +104,7 @@ Solidity.prototype = {
     "detach": function() {
         var copy = {
             "bin": this.bin,
+            "bin-runtime" : this["bin-runtime"],
             "xabi": this.xabi,
             "name": this.name
         };
