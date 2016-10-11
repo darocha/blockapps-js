@@ -8,6 +8,8 @@ var Storage = require("./Storage.js");
 var Promise = require('bluebird');
 var Enum = require('./solidity/enum');
 
+var keccak256 = require("./Crypto.js").keccak256;
+
 var readStorageVar = require("./solidity/storage.js");
 var util = require("./solidity/util.js");
 var solMethod = require("./solidity/functions.js");
@@ -104,7 +106,8 @@ Solidity.prototype = {
     "detach": function() {
         var copy = {
             "bin": this.bin,
-            "bin-runtime" : this["bin-runtime"],
+            "bin-runtime": this["bin-runtime"],
+            "codeHash": this["codeHash"],
             "xabi": this.xabi,
             "name": this.name
         };
@@ -139,6 +142,7 @@ function makeSolidity(xabi, bin, binr, contract) {
         {
             "bin": bin,
             "bin-runtime": binr,
+            "codeHash": keccak256(binr),
             "xabi": xabi,
             "name": contract
         }
