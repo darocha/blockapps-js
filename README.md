@@ -588,6 +588,15 @@ Its output has the same format as `solc()` as well, except that
 instead of `abi` and `bin` fields, each contract name has as its value
 the JSON object associated.
 
+This route has transparent support for import file discovery.  If you simply
+supply it with a main file having unresolved imports, the route will use the
+missing import error to find other files to include, adding them to the 
+source code object.  When a successful response is finally obtained, the
+ultimate source code object is included as its `dataObj` member.  Thus, it is
+possible to subsequently use the `solc` route with this filled-in object, and
+therefore, only the main filename need be explicitly supplied to use both of
+these routes.
+
 #### `faucet(address)`
 
 Takes an argument convertible to Address and supplies it with 1000
