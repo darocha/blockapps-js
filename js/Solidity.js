@@ -56,10 +56,11 @@ function Solidity(x) {
     var files = {};
     for (file in solcR) {
       var contracts = {};
-      for (contract in solcR[file]) {
+      for (contract in xabiR[file]) {
         var xabi = xabiR[file][contract];
-        var bin = solcR[file][contract].bin;
-        var binr = solcR[file][contract]["bin-runtime"];
+        var realName = xabi.realName;
+        var bin = solcR[file][realName].bin;
+        var binr = solcR[file][realName]["bin-runtime"];
         contracts[contract] = makeSolidity(xabi, bin, binr, contract);
       }
       files[file] = contracts;
