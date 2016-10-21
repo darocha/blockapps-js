@@ -24,6 +24,7 @@ code.
     - [Call many methods in a single message transaction](#call-many-methods-in-a-single-message-transaction)
 - [API details](#api-details)
   - [BlockApps profiles](#blockapps-profiles)
+  - [Transaction abstraction](#transaction-abstraction)
   - [The `ethbase` submodule](#the-ethbase-submodule)
     - [`Int`](#int)
     - [`Address`](#address)
@@ -378,6 +379,87 @@ BlockApps API routes version 1.1, which is incompatible with version
 *will not work* with STRATO nodes not exposing this version of the
 routes.
 
+### Transaction abstraction
+
+This library attempts to abstract away the technical details of Ethereum
+transactions.  This is not always possible; for instance, it is always
+potentially necessary to supply parameters such as the gas limit and potentially
+_desirable_ to specify the gas price.  At a higher level, the Solidity language
+hides the details of "transaction data" behind an object-oriented framework of
+contract method calls, meaning that a Solidity method call can be considered, as
+a transaction, to have several different kinds of result: its result as a plain
+transaction, which exposes virtual machine details; or its result as a method
+call, which is simply the return value.
+
+The most irritating abstraction leak involves the transaction nonce.  In order
+to prevent replay attacks and ensure transaction ordering, Ethereum requires
+that successive transactions from a given account be tagged with an increasing
+"number used once", or nonce, and that transactions be processed strictly in
+order of their nonces.  The `Transaction` module, described below, attempts to
+determine the nonce by querying the blockchain.  This approach has the
+shortcoming that the nonce it gets can only be accurate if there are no
+transactions "in flight", so it is impossible to execute tight loops.
+
+#### Transaction handlers
+
+To address these issues, we attach "handlers" to each transaction.  Each
+abstraction level provides its own additional handlers.  The two most basic are:
+
+ - Transaction hash handler.  This returns immediately upon response from the
+   strato API that the transaction was received.  This is in fact the default
+   and is not called explicitly. 
+ - Transaction result handler.  This polls the api for the given transaction
+   hash until the transaction is reported to be executed, and returns a
+   structure describing the execution results.
+
+The `Solidity` module provides more handlers at a higher level.
+
+#### Transaction batching
+
+Here is an example of how to use the two-phase transaction processing to send
+transactions in a batch without waiting for each to be mined first.
+
+```js
+var Promise = require("bluebird");
+var lib = require("blockapps-js");
+lib.enableHandlers = true;
+
+lib.Solidity(`
+contract C {
+  int[] a;
+  function f(int i) returns (int) { a.push(i); return i; }
+}
+`).
+call("construct").`
+then(function(solObj) {
+  var privkey; // Some private key
+  var f = solObj.state.f;
+  var txs = [ f(0), f(1), f(2) ];
+  
+  function send(tx, nonce) {
+    return tx.txParams({nonce: nonce}).callFrom(privkey);
+  }
+
+  // The mapSeries sends the transactions sequentially but doesn't wait for
+  // their return values to become available.
+  // The map then fetches the return values.
+  Promise.mapSeries(txs, send).map(function(tx) {return tx.returnValue;});
+  // This evaluates to [0,1,2] and solObj.state.a also evaluates to [0,1,2],
+  // showing that the transactions were executed in order.
+});
+```
+
+#### Backwards compatibility
+
+Handlers alter the API for using transactions by introducing the handler as an
+additional call.  To maintain backwards compatibility, we also introduce a
+global variable `handlers.enable` that defaults to false.  To use the new
+handlers functionality, therefore, you must execute the statement
+```js
+var lib = require("blockapps-js");
+lib..handlers.enable = true;
+```
+
 ### The `ethbase` submodule
 
 This component provides Javascript support for the basic concepts of
@@ -443,12 +525,11 @@ long.
 The constructor for Ethereum transactions.  `blockapps-js` abstracts a
 transaction into two parts:
 
-   - *parameters*: The argument to Transaction is an object with up to
-      four members: the numbers `value`, `gasPrice`, and `gasLimit`,
-      whose defaults are provided in `ethbase.Transaction.defaults` as
-      respectively 0, 1, and 3141592; and the hex string or Buffer
-      `data`.  Optionally, this object may contain `to` as well, a
-      value convertible to Address.
+   - *parameters*: The argument to Transaction is an object with up to five
+     members: the numbers `nonce`, `value`, `gasPrice`, and `gasLimit`, whose
+     defaults are provided in `ethbase.Transaction.defaults` as respectively 0,
+     1, and 3141592; and the hex string or Buffer `data`.  Optionally, this
+     object may contain `to` as well, a value convertible to Address.
 
    - *participants*: A call to `ethbase.Transaction` returns an object
       with a method `send` taking two arguments, respectively a
@@ -457,7 +538,7 @@ transaction into two parts:
       if `to` is passed as a parameter to `ethbase.Transaction`, and
       overrides it if present.  Calling this function sends the
       transaction and returns a Promise resolving to the transaction
-      result (see the "routes" section).
+      handlers for `routes.submitTransaction`.
 
 #### `Units`
 
@@ -650,18 +731,25 @@ operating the database.
 
 #### `submitTransaction(txObj)`
 
-This is the low-level interface for the `ethcore.Transaction` object.
-It accepts an object containing precisely the following fields, and
-returns a Promise resolving to "transaction result" object with fields
-summarizing the VM execution.  The Transaction and Solidity objects
-(below) handle the most useful cases, so when using this route
-directly, the most important fact about the transaction result is that
-its presence indicates success.
+This is the low-level interface for the `ethcore.Transaction` object.  It
+accepts an object containing precisely the following fields, and returns a
+Promise resolving as soon as the submission is received
+by the API. The Transaction and Solidity objects (below) handle the most
+useful cases, so when using this route directly, the most important fact about
+the transaction result is that its presence indicates success.
 
    - *nonce*, *gasPrice*, *gasLimit*: numbers.
    - *value*: a number encoded in base 10.
    - *codeOrData*, *from*, *to*: hex strings, the latter two addresses.
    - *r*, *s*, *v*, *hash*: cryptographic signature of the other parts.
+
+##### Transaction handlers
+
+This method returns a Promise to an object with two properties:
+
+ - `txHash`: resolves immediately to the transaction hash.
+ - `txResult`: polls the API server until the transaction is mined, and resolves
+   to a structure with various transaction execution data (see the next route).
 
 #### `transactionResult(hash)`
 
@@ -734,13 +822,17 @@ a *synchronous* result, not a promise.
 
 A Solidity object can be used to construct a *contract object* using
 the member function `.construct()`.  This method takes the contract
-constructor arguments and has the same interface as contract
-functions, described below.  In particular, to create a new contract
-you would do:
+constructor arguments and has the same calling convention as contract
+functions, described below.  It provides the additional transaction handler on
+top of `Transaction`:
+
+ - `contract`: a Promise resolving to a Solidity contract object.
+
+In particular, to create a new contract you would do:
 ```
 Solidity(<source>).
 then(function(solObj) {
-    return solObj.construct(<arguments>).callFrom(<private key>);
+    return solObj.construct(<arguments>).callFrom(<private key>).get(contract);
 }).
 then(function(contract) { ... });
 ```
@@ -846,14 +938,15 @@ The return value of this function has two methods:
       gasPrice, gasLimit}`.  Returns the same object, now with these
       parameters remembered.
 
-  - *callFrom(privkey)*: calls the function from the account with the
-     given private key.  Its return value is a Promise of the return
-     value of the Solidity function, if any.
+  - *callFrom(privkey)*: calls the function from the account with the given
+    private key.  It returns a Promise as `Transaction` does, with the
+    additional handler `returnValue`, which resolves to a Promise of the
+    return value of the Solidity function, if any.
 
 Thus, one calls a solidity function as
 
 ```js
-contractObj.state.fName(args|arg1, arg2, ..)[   .txParams(params)].callFrom(privkey);
+contractObj.state.fName(args|arg1, arg2, ..)[   .txParams(params)].callFrom(privkey).get("returnValue");
 ```
 
 ### The `MultiTX` submodule

@@ -15,6 +15,8 @@ var solMethod = require("./solidity/functions.js");
 var assignType = require("./types.js").assignType;
 var errors = require("./errors.js");
 
+var handlers = require("./handlers.js");
+
 module.exports = Solidity;
 
 // string argument as in solc(code, _)
@@ -148,22 +150,30 @@ function makeSolidity(xabi, bin, contract) {
 }
 
 function constrFrom(privkey) {
-    var contract = this._solObj;
-    return this.send(privkey).
-        get("contractsCreated").
-        tap(function(addrList){
-            if (addrList.length !== 1) {
-                throw new Error("constructor must create a single account");
-            }
-        }).
-        get(0).
-        then(Address).
-        then(function(addr) {
-            contract.address = addr;
-        }).
-        thenReturn(contract).
-        then(attach).
-        tagExcepts("Solidity");
+  function setContractHandler(txHandlers) {
+    var contract = this;
+    var txResult = handlers.enable ? txHandlers.txResult : txHandlers;
+    txHandlers.contract = 
+      Promise.resolve(txResult).
+      get("contractsCreated").
+      tap(function(addrList){
+        if (addrList.length !== 1) {
+          throw new Error("constructor must create a single account");
+        }
+      }).
+      get(0).
+      then(Address).
+      then(function(addr) {
+        contract.address = addr;
+      }).
+      thenReturn(contract).
+      then(attach).
+      tagExcepts("contract handler");
+    return txHandlers;
+  }
+
+  result = this.send(privkey).then(setContractHandler.bind(this._solObj));
+  return handlers.enable ? result : result.get("contract");
 }
 
 function attach(solObj) {

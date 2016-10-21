@@ -4,6 +4,7 @@ var Address = require("../Address.js");
 var pollPromise = require("./pollPromise.js");
 var errors = require("../errors.js");
 var accountAddress = require("./db.js").accountAddress;
+var handlers = require("../handlers.js");
 
 function faucet(address) {
     var addr;
@@ -24,16 +25,26 @@ function faucet(address) {
 }
 
 function submitTransaction(txObj) {
-    return HTTPQuery("/transaction", {"data":txObj}).
-        then(function(txHash) {
-            return pollPromise(transactionResult.bind(null, txHash));
-        }).
-        catch(Promise.TimeoutError, function() {
-            throw new Error(
-                "waited " + pollPromise.defaults.pollTimeoutMS / 1000 + " seconds"
-            );
-        }).
-        tagExcepts("submitTransaction");
+  function setTXHashHandler(txHash) { return { txHash: Promise.resolve(txHash) }; }
+  function setTXResultHandler(txHandlers) {
+    txHandlers.txResult = 
+      txHandlers.txHash.
+      then(function(txHash) { return pollPromise(transactionResult.bind(null, txHash)); }).
+      catch(Promise.TimeoutError, function() {
+          throw new Error(
+              "waited " + pollPromise.defaults.pollTimeoutMS / 1000 + " seconds"
+          );
+      }).
+      tagExcepts("txResult handler");
+    return txHandlers;
+  }
+
+  var result = 
+    HTTPQuery("/transaction", {"data":txObj}).
+    then(setTXHashHandler).
+    then(setTXResultHandler).
+    tagExcepts("submitTransaction");
+  return handlers.enable ? result : result.get("txResult");
 }
 
 function transaction(transactionQueryObj) {

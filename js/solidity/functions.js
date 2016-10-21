@@ -3,6 +3,7 @@ var Transaction = require("../Transaction.js");
 var util = require("./util.js");
 var errors = require("../errors.js");
 var Enum = require("./enum.js");
+var handlers = require("../handlers.js");
 
 function solMethod(typesDef, funcDef, name) {
     var vals = funcDef["vals"];
@@ -80,9 +81,13 @@ function txParams(given) {
 }
 
 function callFrom(from) {
-    var tx = this;
-    return tx.send(from).get("response").then(function(r) {
-        var result = decodeReturn(tx._ret, r);
+  function setReturnValueHandler(txHandlers) {
+    var ret = this;
+    txHandlers.returnValue =
+      (handlers.enable ? txHandlers.txResult : txHandlers).
+      get("response").
+      then(function(r) {
+        var result = decodeReturn(ret, r);
         switch (result.length) {
         case 0:
             return null;
@@ -91,7 +96,12 @@ function callFrom(from) {
         default:
             return result;
         }
-    });
+      });
+    return txHandlers;
+  }
+
+  var result = this.send(from).then(setReturnValueHandler.bind(this._ret));
+  return handlers.enable ? result : result.get("returnValue");
 }
 
 function funcArgs(selector, argsList, x) {

@@ -6,6 +6,8 @@ var Account = require("./Account.js");
 var Address = require("./Address.js");
 var Int = require("./Int.js");
 var errors = require("./errors.js");
+var Promise = require("bluebird");
+var enableHandlers = require("./handlers.js");
 
 module.exports = Transaction;
 
@@ -16,7 +18,7 @@ var defaults = {
 module.exports.defaults = defaults;
 
 // argObj = {
-//   data:, value:, gasPrice:, gasLimit:
+//   data:, value:, gasPrice:, gasLimit:, nonce:
 // }
 function Transaction(argObj) {
     if (!(this instanceof Transaction)) {
@@ -31,6 +33,9 @@ function Transaction(argObj) {
         ["gasPrice", "gasLimit", "value"].forEach(function(prop) {
             tx[prop] = Int((prop in argObj ? argObj : defaults)[prop]);
         });
+        if ("nonce" in argObj) {
+          tx.nonce = argObj.nonce;
+        }
         tx.data = new Buffer(argObj.data || "", "hex");
         tx.to = Address(argObj.to);
     }
@@ -95,24 +100,38 @@ function txHash(full) {
 }
 
 function sendTX(privKeyFrom, addressTo) {
+    var tx = this;
     try {
         privKeyFrom = Crypto.PrivateKey(privKeyFrom);
-        this.from = privKeyFrom.toAddress()
+        tx.from = privKeyFrom.toAddress()
         if (arguments.length > 1) {
-            this.to = Address(addressTo);
+            tx.to = Address(addressTo);
         }
     }
     catch(e) {
         throw errors.pushTag("Transaction")(e);
     }
 
-    return Account(this.from).nonce.
-        then((function(nonce) {
-            this.nonce = nonce;
-            this.sign(privKeyFrom);
-            return submitTransaction(this);
-        }).bind(this)).
+    var setNonce;
+    if ("nonce" in tx) {
+      setNonce = Promise.resolve();
+    }
+    else {
+      setNonce = 
+        Account(tx.from).nonce.
+          then(function(nonce) {
+            tx.nonce = nonce;
+          });
+    }
+
+    var result = 
+      setNonce.
+        then(function() { 
+          tx.sign(privKeyFrom);
+          return submitTransaction(tx);
+        }).
         tagExcepts("Transaction");
+    return result;
 }
 
 function txToJSON() {
