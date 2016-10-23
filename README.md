@@ -422,7 +422,7 @@ transactions in a batch without waiting for each to be mined first.
 ```js
 var Promise = require("bluebird");
 var lib = require("blockapps-js");
-lib.enableHandlers = true;
+lib.handlers.enable = true;
 
 lib.Solidity(`
 contract C {
