@@ -34,7 +34,7 @@ function Transaction(argObj) {
             tx[prop] = Int((prop in argObj ? argObj : defaults)[prop]);
         });
         if ("nonce" in argObj) {
-          tx.nonce = argObj.nonce;
+          tx.nonce = Int(argObj.nonce);
         }
         tx.data = new Buffer(argObj.data || "", "hex");
         tx.to = Address(argObj.to);
@@ -123,7 +123,6 @@ function sendTX(privKeyFrom, addressTo) {
             tx.nonce = nonce;
           });
     }
-
     var result = 
       setNonce.
         then(function() { 

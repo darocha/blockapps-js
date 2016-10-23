@@ -173,6 +173,10 @@ function constrFrom(privkey) {
   }
 
   result = this.send(privkey).then(setContractHandler.bind(this._solObj));
+  // Use like solObj.construct().callFrom(privkey) to get a dictionary of
+  // handlers: {txHash:, txResult, contract}
+  // Resolving .contract will construct the attached Solidity object (previous
+  // behavior was to construct this in one step)
   return handlers.enable ? result : result.get("contract");
 }
 

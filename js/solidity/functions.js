@@ -77,14 +77,21 @@ function txParams(given) {
             }
         }.bind(this))
     }
+    if ("nonce" in given) {
+      this.nonce = Int(given.nonce);
+    }
     return this;
 }
 
 function callFrom(from) {
-  function setReturnValueHandler(txHandlers) {
+  function setReturnValueHandler(maybeTXHandlers) {
     var ret = this;
     txHandlers.returnValue =
-      (handlers.enable ? txHandlers.txResult : txHandlers).
+      // IF handlers.enable == true, then this.send returned a dictionary of
+      // handlers and we have to fetch the txResult ourselves
+      // If handlers.enable == false, then this.send returned the txResult
+      // directly.
+      (handlers.enable ? maybeTXHandlers.txResult : maybeTXHandlers).
       get("response").
       then(function(r) {
         var result = decodeReturn(ret, r);
@@ -97,7 +104,7 @@ function callFrom(from) {
             return result;
         }
       });
-    return txHandlers;
+    return maybeTXHandlers;
   }
 
   var result = this.send(from).then(setReturnValueHandler.bind(this._ret));
