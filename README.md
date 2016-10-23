@@ -431,6 +431,7 @@ contract C {
 }
 `).
 call("construct").`
+call("callFrom", privkey).
 then(function(solObj) {
   var privkey; // Some private key
   var f = solObj.state.f;
