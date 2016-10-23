@@ -77,6 +77,9 @@ function txParams(given) {
             }
         }.bind(this))
     }
+    if ("nonce" in given) {
+      this.nonce = Int(given.nonce);
+    }
     return this;
 }
 

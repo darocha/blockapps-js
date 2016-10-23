@@ -421,32 +421,46 @@ transactions in a batch without waiting for each to be mined first.
 
 ```js
 var Promise = require("bluebird");
-var lib = require("blockapps-js");
+var lib = require("./index.js");
 lib.handlers.enable = true;
-
-lib.Solidity(`
-contract C {
-  int[] a;
-  function f(int i) returns (int) { a.push(i); return i; }
+lib.setProfile("strato-dev", /* Your node */);
+var privkey = lib.ethbase.Crypto.PrivateKey.random();
+lib.routes.faucet(privkey.toAddress()).then(function(data) {
+  lib.Solidity(`
+contract C { 
+  int[] a; 
+  function f(int i) returns (int) {
+    a.push(i); return i; 
+  } 
 }
 `).
-call("construct").`
-call("callFrom", privkey).
-then(function(solObj) {
-  var privkey; // Some private key
-  var f = solObj.state.f;
-  var txs = [ f(0), f(1), f(2) ];
-  
-  function send(tx, nonce) {
-    return tx.txParams({nonce: nonce}).callFrom(privkey);
-  }
-
-  // The mapSeries sends the transactions sequentially but doesn't wait for
-  // their return values to become available.
-  // The map then fetches the return values.
-  Promise.mapSeries(txs, send).map(function(tx) {return tx.returnValue;});
-  // This evaluates to [0,1,2] and solObj.state.a also evaluates to [0,1,2],
-  // showing that the transactions were executed in order.
+  call("construct").
+  call("callFrom", privkey).
+  get("contract").
+  then(function(solObj) {
+    var f = solObj.state.f;
+    var txs = [f(0), f(1), f(2)];
+    function send(tx, index) {
+      return tx.txParams({
+        nonce: index + 1 // +1 because we used one transaction to construct the contract
+      }).callFrom(privkey);
+    }
+    // The mapSeries sends the transactions sequentially but doesn't wait for
+    // their return values to become available.
+    // The map then fetches the return values.
+    Promise.mapSeries(txs, send).map(function(tx) {
+      return tx.returnValue;
+    }).then(console.log).
+      thenReturn(solObj).
+      get("state").
+      get("a").
+      then(console.log)
+      ;
+    // Prints 
+    //   [ <BN: 0>, <BN: 1>, <BN: 2> ]
+    //   [ <BN: 0>, <BN: 1>, <BN: 2> ]
+    // showing that the transactions are executed in order.
+  });
 });
 ```
 
