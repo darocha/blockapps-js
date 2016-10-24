@@ -52,7 +52,10 @@
     "devDependencies": {
         "browserify": "^11.0.1",
         "browser-request": "",
-        "minify" : ""
+        "minify" : "",
+        "chai": "",
+        "mocha": "",
+        "chai-as-promised": ""
     },
     "scripts": {
         "build": "npm run browserify && npm run minify",
