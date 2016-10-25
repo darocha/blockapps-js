@@ -27,6 +27,12 @@ function readBytes(varDef, storage) {
     else {
         return util.dynamicDef(varDef, storage).
             spread(function(realBytesAt, lengthBytes) {
+                // The "lengthBytes" array looks like this:
+                // [ data0 data1 ... data30 (2 * length) ] (if length <32)
+                // [ (2*length+1)31 (2*length+1)30 .. (2*length+1)0 ] (else)
+                // In the second case, the data is at SHA(address of
+                // lengthBytes).  this is handled by dynamicDef and is
+                // realBytesAt.
                 var lengthMul = lengthBytes[31];
                 var length;
                 if (lengthMul % 2) {

@@ -24,6 +24,8 @@ function Enum(names, enumName) {
         item.toJSON = function() { return this.toString(); };
         return item;
     };
+    result.toString = function() { return names; };
+    result.toJSON = function() { return names; };
     return result;
 }
 
