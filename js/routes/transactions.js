@@ -27,6 +27,18 @@ function faucet(address) {
 function submitTransaction(txObj) {
   function setTXHashHandler(txHash) { return { txHash: Promise.resolve(txHash) }; }
   function setTXResultHandler(txHandlers) {
+      return txBasicHandler(txHandlers);
+  }
+
+  var result = 
+    HTTPQuery("/transaction", {"data":txObj}).
+    then(setTXHashHandler).
+    then(setTXResultHandler).
+    tagExcepts("submitTransaction");
+  return handlers.enable ? result : result.get("txResult");
+}
+
+function txBasicHandler(txHandlers) { 
     txHandlers.txResult = 
       txHandlers.txHash.
       then(function(txHash) { return pollPromise(transactionResult.bind(null, txHash)); }).
@@ -37,10 +49,16 @@ function submitTransaction(txObj) {
       }).
       tagExcepts("txResult handler");
     return txHandlers;
+}
+
+function submitTransactionList(txObjList) {
+  function setTXHashHandler(txHashList) { return { txHash: Promise.resolve(txHashList) }; }
+  function setTXResultHandler(txHandler) {
+      return Promise.map(txHandler, txBasicHandler);
   }
 
   var result = 
-    HTTPQuery("/transaction", {"data":txObj}).
+    HTTPQuery("/transactionList", {"data":txObjList}).
     then(setTXHashHandler).
     then(setTXResultHandler).
     tagExcepts("submitTransaction");
@@ -131,6 +149,7 @@ function transactionResult(txHash) {
 module.exports = {
     faucet: faucet,
     submitTransaction: submitTransaction,
+    submitTransactionList: submitTransactionList,
     transaction: transaction,
     transactionLast: transactionLast,
     transactionResult: transactionResult

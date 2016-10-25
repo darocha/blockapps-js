@@ -178,3 +178,29 @@ function txInt(x, name) {
     }
     return x;
 }
+
+/**
+ * Takes a list of transactions, and a starting nonce, and 
+ * updates all nonces incrementing by one starting with that nonce.
+ * @function transactionListNonce
+ * @param {[Transaction]} txList - list of transactions
+ * @param {Number} startNonce - the Starting Nonce
+ * @returns {[Transaction]}
+ */ 
+
+function transactionListNonce(txList, startNonce) { 
+    return txList.map(function (tx, index) { return tx.txParams({nonce: index+startNonce }) } );
+}
+
+/**
+ * Takes a list of transactions and a private key and signs them all.
+ * @function transactionListSign
+ * @param {[Transaction]} txList - list of transactions
+ * @param {privkey} privkey - the private key
+ * @returns {[Transaction]}
+ */ 
+
+function transactionListSign(txList, privkey) { 
+    return transactionListSign.map(function (tx) { tx.sign(privkey); return tx; });
+} 
+
