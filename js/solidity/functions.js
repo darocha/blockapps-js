@@ -1,3 +1,4 @@
+var Promise = require("bluebird");
 var Int = require("../Int.js");
 var Transaction = require("../Transaction.js");
 var util = require("./util.js");
@@ -83,15 +84,17 @@ function txParams(given) {
     return this;
 }
 
-function callFrom(from) {
+function callFrom(typesDef, from) {
   function setReturnValueHandler(maybeTXHandlers) {
     var ret = this;
-    txHandlers.returnValue =
+    var txResult = 
+      handlers.enable ? maybeTXHandlers.txResult : Promise.resolve(maybeTXHandlers);
+    maybeTXHandlers.returnValue =
       // IF handlers.enable == true, then this.send returned a dictionary of
       // handlers and we have to fetch the txResult ourselves
       // If handlers.enable == false, then this.send returned the txResult
       // directly.
-      (handlers.enable ? maybeTXHandlers.txResult : maybeTXHandlers).
+      txResult.
       get("response").
       then(function(r) {
         var result = decodeReturn(typesDef, ret, r);
