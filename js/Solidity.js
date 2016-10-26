@@ -124,13 +124,13 @@ Solidity.attach = function(x) {
         if (typeof x === "string") {
             x = JSON.parse(x);
         }
-        x = assignType(Solidity, x);
+        var result = makeSolidity(x.xabi, x.bin, x.binr, x.name);
         if (x.address) {
-            x.address = Address(x.address);
-            return attach(x);
+            result.address = Address(x.address);
+            return attach(result);
         }
         else {
-            return x;
+            return result;
         }
     }
     catch(e) {
@@ -139,6 +139,15 @@ Solidity.attach = function(x) {
 }
 
 function makeSolidity(xabi, bin, binr, contract) {
+    var typesDef = xabi.types;
+    for (typeName in typesDef) {
+        var typeDef = typesDef[typeName];
+        if (typeDef.type === "Enum") {
+            typeDef.names = Enum(typeDef.names, typeName);
+        }
+    }
+    util.setTypedefs(typesDef, xabi.vars);
+
     return assignType(
         Solidity,
         {
@@ -186,15 +195,6 @@ function attach(solObj) {
     var state = {};
     var xabi = solObj.xabi;
     var types = xabi.types;
-
-    var typesDef = xabi.types;
-    for (typeName in typesDef) {
-        var typeDef = typesDef[typeName];
-        if (typeDef.type === "Enum") {
-            typeDef.names = Enum(typeDef.names, typeName);
-        }
-    }
-    util.setTypedefs(typesDef, xabi.vars);
 
     var addr = solObj.address;
     delete solObj.address;
