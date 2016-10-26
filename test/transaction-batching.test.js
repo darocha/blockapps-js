@@ -81,7 +81,7 @@ describe("transaction batching:", function() {
       var tx0 = lib.Solidity("contract C{function f() returns (int) {return 1;}}").call("construct");
       var tx = faucet.
         then(function() {
-          return tx.call("callFrom", privkey).get("state").call("f");
+          return tx0.call("callFrom", privkey).get("contract").get("state").call("f");
         });
       var callMethod = tx.
         then(function() {
@@ -97,7 +97,9 @@ describe("transaction batching:", function() {
               which.should.eventually.equal(txHash),
             callMethod.should.eventually.have.property("txResult").
               which.should.eventually.have.property("transactionHash").
-              which.should.eventually.equal(txHash)
+              which.should.eventually.equal(txHash),
+            callMethod.should.eventually.have.property("returnValue"),
+            callMethod.get("returnValue").call("toString").should.eventually.equal("1")
           ]);
         });
 
