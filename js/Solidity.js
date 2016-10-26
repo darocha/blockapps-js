@@ -144,7 +144,7 @@ function makeSolidity(xabi, bin, binr, contract) {
         {
             "bin": bin,
             "bin-runtime": binr,
-            "codeHash": keccak256(binr),
+            "codeHash": binr ? keccak256(binr) : undefined,
             "xabi": xabi,
             "name": contract
         }
