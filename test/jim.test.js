@@ -11,11 +11,10 @@ lib.setProfile("ethereum-frontier", "https://strato-scale1.blockapps.net/strato-
 var privkey = lib.ethbase.Crypto.PrivateKey.random()
 var faucet = lib.routes.faucet(privkey.toAddress())
 
-describe("Send and resolve 10 transactions every 5 seconds", function() {
+describe("Send transaction batches in a fixed interval", function() {
   this.timeout(0)
   for(j = 0;j < 20;++j) {
-    it("Should send 10 transactions and resolve in 5 seconds", function() {
-      this.timeout(6000)
+    it("Should send 20 transactions and finish in 2 seconds", function() {
       var txsDone = false;
       var nonceC;
 
@@ -23,15 +22,15 @@ describe("Send and resolve 10 transactions every 5 seconds", function() {
         then(function(n) { nonceC = n; }).
         then(function() {
           var txList = []
-          for (i = 0; i < 10; ++i) {
+          for (i = 0; i < 20; ++i) {
             var tx = lib.ethbase.Transaction({nonce: lib.ethbase.Int(nonceC + i)});
             tx.from = privkey.toAddress();
+            tx.sign(privkey);
             txList.push(tx);
           }
-          var sendTXs = Promise.
-            mapSeries(txList, function(tx) {return tx.send(privkey)}).
+          var sendTXs = lib.routes.submitTransactionList(txList).
             then(function() { txsDone = true; });
-          return Promise.delay(5000).then(function() {return txsDone;});
+          return Promise.delay(2000).then(function() {return txsDone;});
         }).should.eventually.be.true;
     })
   }

@@ -59,9 +59,9 @@ function submitTransactionList(txObjList) {
 
   var result = 
     HTTPQuery("/transactionList", {"data":txObjList}).
-    then(setTXHashHandler).
-    then(setTXResultHandler).
-    tagExcepts("submitTransaction");
+ //   then(setTXHashHandler).
+  //  then(setTXResultHandler).
+    tagExcepts("submitTransactionList");
   return handlers.enable ? result : result.get("txResult");
 }
 

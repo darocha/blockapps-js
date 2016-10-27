@@ -16,6 +16,7 @@ module.exports = {
     account: db.account,
     accountAddress: db.accountAddress,
     submitTransaction: transactions.submitTransaction,
+    submitTransactionList: transactions.submitTransactionList,
     transaction: transactions.transaction,
     transactionLast: transactions.transactionLast,
     transactionResult: transactions.transactionResult,
