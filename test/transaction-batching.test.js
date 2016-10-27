@@ -6,7 +6,7 @@ chai.should()
 var Promise = require("bluebird");
 var lib = require("..");
 var apiURL = "https://ryan-build.blockapps.net/strato-api"
-lib.setProfile("strato-dev", apiURL);
+lib.setProfile("ethereum-frontier", apiURL);
 
 lib.handlers.enable = true;
 
@@ -15,6 +15,7 @@ var faucet = lib.routes.faucet(privkey.toAddress());
 
 describe("transaction batching:", function() {
   describe("handlers:", function() {
+    this.timeout(60000);
     it("submitTransaction route should have txHash and txResult handlers", function() {
       var rawTX = lib.ethbase.Transaction({nonce:0});
       rawTX.from = privkey.toAddress();
@@ -107,17 +108,92 @@ describe("transaction batching:", function() {
   });
   describe("load tests:", function() {
     this.timeout(100000); // in milliseconds
-    it("can batch 100 simple value transfers", function() {
+    
+    // txFn :: number -> transaction
+    // setNonce :: tx -> number -> tx
+    // sendFn :: transaction -> tx handlers
+    function sendBatch(txFn, setNonce, sendFn) {
+      var batch = [];
+      for (i = 0; i < 100; ++i) {
+        batch.push(txFn(i));
+      }
 
+      var head = batch.shift();
+      return faucet.
+        thenReturn(head).
+        then(sendFn).
+        thenReturn(head).
+        get("nonce").
+        then(function(nonce) {
+          return Promise.mapSeries(batch, function(tx, i) {
+            var tx2 = setNonce(tx, nonce.plus(i + 1));
+            return sendFn(tx2);
+          });
+        });
+    }
+
+    it("can batch 100 simple value transfers", function() {
+      function txFn(i) {
+        return lib.ethbase.Transaction({value : i});
+      }
+      function setNonce(tx, n) {
+        tx.nonce = n;
+        return tx;
+      }
+      function sendFn(tx) {
+        return tx.send(privkey);
+      }
+      return sendBatch(txFn, setNonce, sendFn);
     });
     it("can batch 100 contract creations with empty contracts", function() {
-
+      function txFn(i) {
+        return lib.Solidity("contract C{}").call("construct");
+      }
+      function setNonce(tx, n) {
+        return tx.txParams({nonce: n});
+      }
+      function sendFn(tx) {
+        return tx.callFrom(privkey);
+      }
+      return sendBatch(txFn, setNonce, sendFn);
     });
     it("can batch 100 contract creations that set a state variable", function() {
-
+      function txFn(i) {
+        return lib.Solidity("contract C{int x = " + i + ";}").call("construct");
+      }
+      function setNonce(tx, n) {
+        return tx.txParams({nonce: n});
+      }
+      function sendFn(tx) {
+        return tx.callFrom(privkey);
+      }
+      return sendBatch(txFn, setNonce, sendFn);
     });
     it("can batch 100 method calls each performing a big loop", function() {
-
+      var createContract = lib.Solidity(`
+contract C{
+  int x = 2;
+  function f() {
+    for (int i = 0; i < 1000; ++i) {
+      x = x*x;
+    }
+  }
+}`      ).
+        call("construct").
+        call("callFrom", privkey).
+        get("contract");
+      function txFn(i) {
+        return this.state.f();
+      }
+      function setNonce(tx, n) {
+        return tx.txParams({nonce: n});
+      }
+      function sendFn(tx) {
+        return tx.callFrom(privkey);
+      }
+      return createContract.then(function(contract) {
+        return sendBatch(txFn.bind(contract), setNonce, sendFn);
+      });
     });
   });
 });
