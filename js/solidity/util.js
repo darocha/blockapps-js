@@ -83,16 +83,16 @@ function readInput(typesDef, varDef, x) {
 
             return result;
         case "Enum":
-            return varDef.names.get(x);
+            return typesDef[varDef.typedef].names.get(x);
         default:
             throw errors.tagError(
-                "Solidity",
+                "readInput",
                 "cannot read type " + type + " from input"
             );
         }
     }
     catch(e) {
-        throw errors.pushTag("Solidity")(e);
+        throw errors.pushTag("readInput")(e);
     }
 }
 

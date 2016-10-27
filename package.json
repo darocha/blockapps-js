@@ -60,7 +60,8 @@
     "scripts": {
         "build": "npm run browserify && npm run minify",
         "browserify": "browserify -r .:blockapps-js -r bluebird -o dist/blockapps.js",
-        "minify": "minify dist/blockapps.js >dist/blockapps-min.js"
+        "minify": "minify dist/blockapps.js >dist/blockapps-min.js",
+        "test": "mocha"
     },
     "browser" : {
         "request" : "browser-request",

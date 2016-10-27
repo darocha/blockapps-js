@@ -22,7 +22,7 @@ function readStorageVar(varDef, storage) {
 
 function readBytes(varDef, storage) {
     if (!varDef.dynamic) {
-        return simpleBuf(varDef, storage);
+        return simpleBuf(varDef, storage, true);
     }
     else {
         return util.dynamicDef(varDef, storage).
@@ -38,7 +38,7 @@ function readBytes(varDef, storage) {
                 if (lengthMul % 2) {
                     lengthMul = Int(lengthBytes).valueOf();
                     length = (lengthMul - 1)/2;
-                    return storage.getRange(realBytesAt, length);
+                    return storage.getRange(realBytesAt, length, true);
                 }
                 else {
                     length = lengthMul/2;
@@ -48,10 +48,10 @@ function readBytes(varDef, storage) {
     }
 }
 
-function simpleBuf(varDef, storage) {
+function simpleBuf(varDef, storage, switchEnds) {
     var start = Int(varDef["atBytes"]);
     var bytesNum = util.objectSize(varDef);
-    return storage.getRange(start, bytesNum);
+    return storage.getRange(start, bytesNum, switchEnds);
 }
 
 module.exports = readStorageVar;
