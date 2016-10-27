@@ -52,15 +52,19 @@ function txBasicHandler(txHandlers) {
 }
 
 function submitTransactionList(txObjList) {
-  function setTXHashHandler(txHashList) { return { txHash: Promise.resolve(txHashList) }; }
-  function setTXResultHandler(txHandler) {
-      return Promise.map(txHandler, txBasicHandler);
+  function setTXHashHandler(txHashList) { 
+    return txHashList.map(function(txHash) { 
+      return {txHash: Promise.resolve(txHash)}
+    });
+  }
+  function setTXResultHandler(txHandlerList) {
+      return txHandlerList.map(txBasicHandler);
   }
 
   var result = 
     HTTPQuery("/transactionList", {"data":txObjList}).
- //   then(setTXHashHandler).
-  //  then(setTXResultHandler).
+    then(setTXHashHandler).
+    then(setTXResultHandler).
     tagExcepts("submitTransactionList");
   return handlers.enable ? result : result.get("txResult");
 }
