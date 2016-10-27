@@ -3,8 +3,8 @@ var chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised)
 chai.should()
 
-var lib = require(".");
-var apiURL = "https://ryan-build.blockapps.net/strato-api"
+var lib = require("..");
+var apiURL = "http://40.84.53.181:3000"
 lib.setProfile("strato-dev", apiURL);
 
 lib.handlers.enable = true;
