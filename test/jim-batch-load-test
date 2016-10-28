@@ -9,8 +9,7 @@ var privkey = lib.ethbase.Crypto.PrivateKey('267579485e8f1f62d74836fabb15974a576
 var faucet = lib.routes.faucet(privkey.toAddress())
 
 var size = 100;
-var goalMS = (size/100) * 1000;
-var gapMS = 5000;
+var gapMS = 10000;
 
 var timesObj = { arr: [] };
 process.on('SIGQUIT', function() {
@@ -29,7 +28,7 @@ process.on('SIGQUIT', function() {
   doStats(times.map(function(time) { return size/(time + gapMS / 1000); }), "tx/s");
 });
 
-timeBatchSizeWithGoalAndGap(size, goalMS, gapMS);
+timeBatchSizeWithGoalAndGap();
 
 function doStats(nums, unit) {
   process.stdout.write(" (ignoring the first half of the data)\n")
@@ -50,7 +49,7 @@ function doStats(nums, unit) {
 }
 
 
-function timeBatchSizeWithGoalAndGap(size, goalMS, gapMS) {
+function timeBatchSizeWithGoalAndGap() {
   process.stdout.write("Sending " + size + " transactions...");
   var nonceC;
 
@@ -78,8 +77,5 @@ function timeBatchSizeWithGoalAndGap(size, goalMS, gapMS) {
         });
     });
 
-  return Promise.delay(gapMS, sendBatch).
-    then(function() {
-      return timeBatchSizeWithGoalAndGap(size, goalMS, gapMS);
-    });
+  return Promise.delay(gapMS, sendBatch).then(timeBatchSizeWithGoalAndGap);
 }
