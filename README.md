@@ -45,6 +45,7 @@ code.
     - [`transaction`](#transactiontransactionqueryobj)
     - [`transactionLast`](#transactionlastn)
     - [`submitTransaction`](#submittransactiontxobj)
+    - [`submitTransactionList`](#submittransactionlisttxobjarray)
     - [`transactionResult`](#transactionresulthash)
     - [`storage`](#storagestoragequeryobj)
     - [`storageAddress`](#storageaddressaddress)
@@ -802,6 +803,17 @@ This method returns a Promise to an object with two properties:
  - `txHash`: resolves immediately to the transaction hash.
  - `txResult`: polls the API server until the transaction is mined, and resolves
    to a structure with various transaction execution data (see the next route).
+
+#### `submitTransactionList(txObjArray)`
+
+This utilizes the `/transactionList` route to submit multiple transactions in a
+single HTTP POST.  Each transaction object in the argument array must be of the
+same format as the argument to `submitTransaction`.
+
+#### Transaction handlers
+
+This method returns a Promise to an array of transaction handler objects as from
+`submitTransaction`.
 
 #### `transactionResult(hash)`
 
