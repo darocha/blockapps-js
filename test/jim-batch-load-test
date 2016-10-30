@@ -1,15 +1,16 @@
 #!/usr/bin/env node
-var Promise = require("bluebird")
-var lib = require("..")
-lib.handlers.enable = true
-lib.setProfile("ethereum-frontier", "https://strato-scale1.blockapps.net/strato-api")
+var Promise = require("bluebird");
+var lib = require("..");
+lib.handlers.enable = true;
+lib.setProfile("ethereum-frontier", "https://strato-scale3.blockapps.net/strato-api");
 
 var privkey = lib.ethbase.Crypto.PrivateKey('267579485e8f1f62d74836fabb15974a576fba3e3e35b0319434203a07d70fc6');
 //var privkey = lib.ethbase.Crypto.PrivateKey.random()
-var faucet = lib.routes.faucet(privkey.toAddress())
+var faucet = lib.routes.faucet(privkey.toAddress());
+var account = lib.ethbase.Account(privkey.toAddress());
 
 var size = 100;
-var gapMS = 10000;
+var gapMS = 3000;
 
 var timesObj = { arr: [] };
 process.on('SIGQUIT', function() {
@@ -28,7 +29,42 @@ process.on('SIGQUIT', function() {
   doStats(times.map(function(time) { return size/(time + gapMS / 1000); }), "tx/s");
 });
 
-timeBatchSizeWithGoalAndGap();
+var compileContract = lib.Solidity(`
+contract C{
+  string[] names;
+  mapping (string => int) values;
+  
+  function C() {
+    addName("Alice");
+    addName("Bob");
+    addName("Carol");
+  }
+
+  function addName(string name) {
+    names.push(name);
+    values[name] = 1;
+  }
+
+  function spin() {
+    busyWork("Alice");
+    busyWork("Bob");
+    busyWork("Carol"); 
+  }
+
+  function busyWork(string name) {
+    for (int i = 0; i < 10; ++i) {
+      values[name] *= 2;
+    }
+  }
+}
+`).call("construct");
+
+var createContract = faucet.
+  thenReturn(compileContract).
+  call("callFrom", privkey).
+  get("contract");
+
+createContract.then(timeBatch);
 
 function doStats(nums, unit) {
   process.stdout.write(" (ignoring the first half of the data)\n")
@@ -48,34 +84,37 @@ function doStats(nums, unit) {
   process.stdout.write("\n");
 }
 
-
-function timeBatchSizeWithGoalAndGap() {
-  process.stdout.write("Sending " + size + " transactions...");
-  var nonceC;
-
-  var sendBatch = lib.ethbase.Account(privkey.toAddress()).nonce.
-    then(function(n) { nonceC = n; }).
-    then(function() {
-      var txList = []
+function timeBatch(contract) {
+  var sendBatch = account.nonce.
+    then(function(n) {
+      var txList = [];
       for (i = 0; i < size; ++i) {
-        var tx = lib.ethbase.Transaction({nonce: lib.ethbase.Int(nonceC + i)});
+        var tx = contract.state.spin().txParams({nonce: n + i, gasLimit: 1000000, gasPrice: 1});
         tx.from = privkey.toAddress();
         tx.sign(privkey);
         txList.push(tx);
       }
-      var time0 = process.hrtime();
 
+      process.stdout.write("# Sending " + size + " transactions\n");
+
+      var time0 = process.hrtime();
+      var durationHR;
       return lib.routes.submitTransactionList(txList).
-        then(function() { return process.hrtime(time0);}).
-        spread(function(durationS, durationNS) {
-          var duration = durationS + durationNS / 1e9;
-          timesObj.arr.push(duration);
-          return duration
+        tap(function() {durationHR = process.hrtime(time0);}).
+        then(function(txHandlersList) { 
+          return Promise.all(txHandlersList.map(function(txHandlers) { return txHandlers.txHash;})) // Hack
         }).
-        then(function(duration) {
-          process.stdout.write("measured duration: " + duration + "s\n");
+        then(function(times) {
+          var duration = durationHR[0] + durationHR[1]/1e9;
+          times = times.map(function(time) { return time/1e9; });
+          times.unshift(duration);
+          timesObj.arr.push(duration);
+          times.forEach(function(time) {
+            process.stdout.write(" " + time);
+          })
+          process.stdout.write("\n");
         });
     });
 
-  return Promise.delay(gapMS, sendBatch).then(timeBatchSizeWithGoalAndGap);
+  return Promise.delay(gapMS, sendBatch).thenReturn(contract).then(timeBatch);
 }
