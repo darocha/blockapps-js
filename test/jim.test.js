@@ -6,7 +6,7 @@ chai.should()
 var Promise = require("bluebird")
 var lib = require("..")
 lib.handlers.enable = true
-lib.setProfile("strato-dev", "http://40.84.53.181:3000")
+lib.setProfile("ethereum-frontier", "https://strato-scale1.blockapps.net/strato-api")
 
 var privkey = lib.ethbase.Crypto.PrivateKey.random()
 var faucet = lib.routes.faucet(privkey.toAddress())
