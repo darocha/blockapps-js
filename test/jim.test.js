@@ -6,7 +6,7 @@ chai.should()
 var Promise = require("bluebird")
 var lib = require("..")
 lib.handlers.enable = true
-lib.setProfile("ethereum-frontier", "https://strato-scale1.blockapps.net/strato-api")
+lib.setProfile("strato-dev", "http://40.84.53.181:3000")
 
 var privkey = lib.ethbase.Crypto.PrivateKey.random()
 var faucet = lib.routes.faucet(privkey.toAddress())
@@ -30,7 +30,7 @@ describe("Send transaction batches in a fixed interval", function() {
           }
           var sendTXs = lib.routes.submitTransactionList(txList).
             then(function() { txsDone = true; });
-          return Promise.delay(2000).then(function() {return txsDone;});
+          return Promise.delay(20000).then(function() {return txsDone;});
         }).should.eventually.be.true;
     })
   }

@@ -51,6 +51,82 @@ function txBasicHandler(txHandlers) {
     return txHandlers;
 }
 
+function submitContractCreateList(contractList, from, privkey){
+
+    var Account = require("../Account.js");
+    var Address = require("../Address.js");
+    var Int = require("../Int.js");
+    var Transaction = require("../Transaction.js");
+    var Solidity = require("../Solidity.js");
+
+    return Account(from).nonce
+    .then(function(n) {
+
+        var txs = contractList.map(function(c, i){
+            var contractJson = c.contractJson;
+            var name = c.contractName;
+            var args = c.args;
+            var txParams = c.txParams || {};
+            console.log("trying contract " + name + " with args " + JSON.stringify(args))
+            console.log("bajs: prvikey: " + privkey) 
+
+            var solObj = Solidity.attach(contractJson);
+
+            var toret;
+            if (args.constructor === Object) {
+              console.log("calling constructor")
+              toret = solObj.construct(args);
+            } else {
+              console.log("calling constructor(2)")
+              toret = solObj.construct.apply(solObj, args);
+            }
+
+            toret.txParams(txParams);
+            toret.nonce = Int(n+i);
+            toret.from = Address(from);
+            toret.sign(privkey);
+
+            return toret;
+        })
+
+        console.log("Submitting txs for submitContractCreateList: " + JSON.stringify(txs))
+        return submitTransactionList(txs);
+    });
+
+}
+
+function submitSendList(toValList, from, privkey){
+
+    var Account = require("../Account.js");
+    var Address = require("../Address.js");
+    var Int = require("../Int.js");
+    var Transaction = require("../Transaction.js");
+
+    return Account(from).nonce
+    .then(function(n) {
+        console.log("Setting nonce to " + n)
+        console.log("basj: prvikey: " + privkey) 
+
+        var txs = toValList.map(function(x, i) {
+            console.log(from + ": " + x.value + " --> " + x.toAddress)
+            var valueTX = Transaction({"nonce": Int(n+i),
+                                       "value" : x.value, 
+                                       "gasLimit" : Int(21000),
+                                       "gasPrice" : Int(50000000000),
+                                       "to": x.toAddress
+                                     });
+
+            valueTX.from = Address(from);
+            valueTX.sign(privkey);
+
+            return valueTX;
+        })
+
+        console.log("Submitting txs for submitSendList: " + JSON.stringify(txs))
+        return submitTransactionList(txs);
+    });
+}
+
 function submitTransactionList(txObjList) {
   function setTXHashHandler(txHashList) { 
     return txHashList.map(function(txHash) { 
@@ -156,5 +232,7 @@ module.exports = {
     submitTransactionList: submitTransactionList,
     transaction: transaction,
     transactionLast: transactionLast,
-    transactionResult: transactionResult
+    transactionResult: transactionResult,
+    submitSendList: submitSendList,
+    submitContractCreateList: submitContractCreateList
 }
