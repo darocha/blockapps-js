@@ -51,6 +51,66 @@ function txBasicHandler(txHandlers) {
     return txHandlers;
 }
 
+function submitContractCallList(callList, from, privkey){
+
+    var Account = require("../Account.js");
+    var Address = require("../Address.js");
+    var Int = require("../Int.js");
+    var Solidity = require("../Solidity.js");
+    var Transaction = require("../Transaction.js");
+    var Units = require("../Units.js");
+
+    return Account(from).nonce
+    .then(function(n) {
+
+        var txs = callList.map(function(c, i){
+            var contractJson = c.contractJson;
+            var name = c.contractName;
+            var method = c.methodName;
+            var value = c.value;
+            var args = c.args;
+            var txParams = c.txParams || {};        
+            console.log("calling " + name + "." + method + "(" + JSON.stringify(args) + ")")
+            console.log("bajs: prvikey: " + privkey) 
+
+            var contract = Solidity.attach(contractJson);
+            console.log("Contract: " + JSON.stringify(contract) )
+
+            value = Math.max(0, value)
+            if (value != undefined) {
+              var pv = Units.convertEth(value).from("ether").to("wei" );
+              console.log("pv: " + pv.toString(10))
+            }
+            txParams.value = pv.toString(10);
+
+            if(contract.state[method] != undefined){
+              try {
+                var toret = contract.state[method](args).txParams(txParams);
+              } catch (error){
+                console.log("failed to look at state for contract: " + error)
+                res.send("failed to look at state for contract: " + error)
+                return;
+              }
+              console.log("Making function call now")
+            } else {
+              console.log("contract " + contractName + " doesn't have method: " + method);
+              res.send("contract " + contractName + " doesn't have method: " + method);
+              return;
+            } 
+
+            toret.nonce = Int(n+i);
+            toret.from = Address(from);
+            toret.txParams(txParams);
+            toret.sign(privkey);
+
+            return toret;
+        })
+
+        console.log("Submitting txs for submitContractCreateList: " + JSON.stringify(txs))
+        return submitTransactionList(txs);
+    });
+}
+
 function submitContractCreateList(contractList, from, privkey){
 
     var Account = require("../Account.js");
@@ -92,7 +152,6 @@ function submitContractCreateList(contractList, from, privkey){
         console.log("Submitting txs for submitContractCreateList: " + JSON.stringify(txs))
         return submitTransactionList(txs);
     });
-
 }
 
 function submitSendList(toValList, from, privkey){
@@ -234,5 +293,6 @@ module.exports = {
     transactionLast: transactionLast,
     transactionResult: transactionResult,
     submitSendList: submitSendList,
+    submitContractCallList: submitContractCallList,
     submitContractCreateList: submitContractCreateList
 }

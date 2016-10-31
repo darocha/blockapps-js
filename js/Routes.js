@@ -18,6 +18,7 @@ module.exports = {
     submitSendList: transactions.submitSendList,
     submitTransaction: transactions.submitTransaction,
     submitTransactionList: transactions.submitTransactionList,
+    submitContractCallList: transactions.submitContractCallList,
     submitContractCreateList: transactions.submitContractCreateList,
     transaction: transactions.transaction,
     transactionLast: transactions.transactionLast,
