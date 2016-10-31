@@ -51,6 +51,25 @@ function txBasicHandler(txHandlers) {
     return txHandlers;
 }
 
+/**
+ * Takes a list of calls, a from address and a privatekey.
+ * It submits all these transactions as a signed batch.
+ * The format of callList is:
+ * [
+ * {
+ *  contractName: "Sample"
+ *  contractAddress: "deadbeef"
+ *  methodName: "something"
+ *  args: {},
+ *  value : 123
+ * },
+ * ...
+ * ]
+ * @function submitContractCallList
+ * @param {[TransactionCall]} callList - list of calls
+ * @param {Address} from - the from address
+ * @returns {PrivateKey} - the private key
+ */ 
 function submitContractCallList(callList, from, privkey){
 
     var Account = require("../Account.js");
@@ -111,6 +130,23 @@ function submitContractCallList(callList, from, privkey){
     });
 }
 
+/**
+ * Takes a list of detached() contracts, a from address and a privatekey.
+ * It submits all these transactions as a signed batch.
+ * The format of callList is:
+ * [
+ * {
+ *  contractName: "Sample"
+ *  args: {},
+ *  value : 123
+ * },
+ * ...
+ * ]
+ * @function submitContractCreateList
+ * @param {[TransactionCall]} contractList - list of calls
+ * @param {Address} from - the from address
+ * @returns {PrivateKey} - the private key
+ */ 
 function submitContractCreateList(contractList, from, privkey){
 
     var Account = require("../Account.js");
@@ -154,6 +190,22 @@ function submitContractCreateList(contractList, from, privkey){
     });
 }
 
+/**
+ * Takes a list of addresses and values in WEI, a from address and a privatekey.
+ * It submits all these transactions as a signed batch.
+ * The format of callList is:
+ * [
+ * {
+ *  toAddress: "deadbeef"
+ *  value: 56464352342342435
+ * },
+ * ...
+ * ]
+ * @function submitSendList
+ * @param {[TransactionCall]} toValList - list of transactions
+ * @param {Address} from - the from address
+ * @returns {PrivateKey} - the private key
+ */ 
 function submitSendList(toValList, from, privkey){
 
     var Account = require("../Account.js");
