@@ -11,7 +11,7 @@ var faucet = lib.routes.faucet(privkey.toAddress());
 var account = lib.ethbase.Account(privkey.toAddress());
 
 var size = 100;
-var gapMS = 3000;
+var gapMS = 5000;
 
 var timesObj = { arr: [] };
 process.on('SIGQUIT', function() {
@@ -99,21 +99,12 @@ function timeBatch(contract) {
       process.stdout.write("# Sending " + size + " transactions\n");
 
       var time0 = process.hrtime();
-      var durationHR;
       return lib.routes.submitTransactionList(txList).
-        tap(function() {durationHR = process.hrtime(time0);}).
-        then(function(txHandlersList) { 
-          return Promise.all(txHandlersList.map(function(txHandlers) { return txHandlers.txHash;})) // Hack
-        }).
-        then(function(times) {
+        tap(function() {
+          var durationHR = process.hrtime(time0);
           var duration = durationHR[0] + durationHR[1]/1e9;
-          times = times.map(function(time) { return time/1e9; });
-          times.unshift(duration);
           timesObj.arr.push(duration);
-          times.forEach(function(time) {
-            process.stdout.write(" " + time);
-          })
-          process.stdout.write("\n");
+          process.stdout.write(duration + "\n");
         });
     });
 
