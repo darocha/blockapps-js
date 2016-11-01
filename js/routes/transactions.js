@@ -51,6 +51,193 @@ function txBasicHandler(txHandlers) {
     return txHandlers;
 }
 
+/**
+ * Takes a list of calls, a from address and a privatekey.
+ * It submits all these transactions as a signed batch.
+ * The format of callList is:
+ * [
+ * {
+ *  contractName: "Sample"
+ *  contractAddress: "deadbeef"
+ *  methodName: "something"
+ *  args: {},
+ *  value : 123
+ * },
+ * ...
+ * ]
+ * @function submitContractCallList
+ * @param {[TransactionCall]} callList - list of calls
+ * @param {Address} from - the from address
+ * @returns {PrivateKey} - the private key
+ */ 
+function submitContractCallList(callList, from, privkey){
+
+    var Account = require("../Account.js");
+    var Address = require("../Address.js");
+    var Int = require("../Int.js");
+    var Solidity = require("../Solidity.js");
+    var Transaction = require("../Transaction.js");
+    var Units = require("../Units.js");
+
+    return Account(from).nonce
+    .then(function(n) {
+
+        var txs = callList.map(function(c, i){
+            var contractJson = c.contractJson;
+            var name = c.contractName;
+            var method = c.methodName;
+            var value = c.value;
+            var args = c.args;
+            var txParams = c.txParams || {};        
+            console.log("calling " + name + "." + method + "(" + JSON.stringify(args) + ")")
+            console.log("bajs: prvikey: " + privkey) 
+
+            var contract = Solidity.attach(contractJson);
+            console.log("Contract: " + JSON.stringify(contract) )
+
+            value = Math.max(0, value)
+            if (value != undefined) {
+              var pv = Units.convertEth(value).from("ether").to("wei" );
+              console.log("pv: " + pv.toString(10))
+            }
+            txParams.value = pv.toString(10);
+
+            if(contract.state[method] != undefined){
+              try {
+                var toret = contract.state[method](args).txParams(txParams);
+              } catch (error){
+                console.log("failed to look at state for contract: " + error)
+                res.send("failed to look at state for contract: " + error)
+                return;
+              }
+              console.log("Making function call now")
+            } else {
+              console.log("contract " + contractName + " doesn't have method: " + method);
+              res.send("contract " + contractName + " doesn't have method: " + method);
+              return;
+            } 
+
+            toret.nonce = Int(n+i);
+            toret.from = Address(from);
+            toret.txParams(txParams);
+            toret.sign(privkey);
+
+            return toret;
+        })
+
+        console.log("Submitting txs for submitContractCreateList: " + JSON.stringify(txs))
+        return submitTransactionList(txs);
+    });
+}
+
+/**
+ * Takes a list of detached() contracts, a from address and a privatekey.
+ * It submits all these transactions as a signed batch.
+ * The format of callList is:
+ * [
+ * {
+ *  contractName: "Sample"
+ *  args: {},
+ *  value : 123
+ * },
+ * ...
+ * ]
+ * @function submitContractCreateList
+ * @param {[TransactionCall]} contractList - list of calls
+ * @param {Address} from - the from address
+ * @returns {PrivateKey} - the private key
+ */ 
+function submitContractCreateList(contractList, from, privkey){
+
+    var Account = require("../Account.js");
+    var Address = require("../Address.js");
+    var Int = require("../Int.js");
+    var Transaction = require("../Transaction.js");
+    var Solidity = require("../Solidity.js");
+
+    return Account(from).nonce
+    .then(function(n) {
+
+        var txs = contractList.map(function(c, i){
+            var contractJson = c.contractJson;
+            var name = c.contractName;
+            var args = c.args;
+            var txParams = c.txParams || {};
+            console.log("trying contract " + name + " with args " + JSON.stringify(args))
+            console.log("bajs: prvikey: " + privkey) 
+
+            var solObj = Solidity.attach(contractJson);
+
+            var toret;
+            if (args.constructor === Object) {
+              console.log("calling constructor")
+              toret = solObj.construct(args);
+            } else {
+              console.log("calling constructor(2)")
+              toret = solObj.construct.apply(solObj, args);
+            }
+
+            toret.txParams(txParams);
+            toret.nonce = Int(n+i);
+            toret.from = Address(from);
+            toret.sign(privkey);
+
+            return toret;
+        })
+
+        console.log("Submitting txs for submitContractCreateList: " + JSON.stringify(txs))
+        return submitTransactionList(txs);
+    });
+}
+
+/**
+ * Takes a list of addresses and values in WEI, a from address and a privatekey.
+ * It submits all these transactions as a signed batch.
+ * The format of callList is:
+ * [
+ * {
+ *  toAddress: "deadbeef"
+ *  value: 56464352342342435
+ * },
+ * ...
+ * ]
+ * @function submitSendList
+ * @param {[TransactionCall]} toValList - list of transactions
+ * @param {Address} from - the from address
+ * @returns {PrivateKey} - the private key
+ */ 
+function submitSendList(toValList, from, privkey){
+
+    var Account = require("../Account.js");
+    var Address = require("../Address.js");
+    var Int = require("../Int.js");
+    var Transaction = require("../Transaction.js");
+
+    return Account(from).nonce
+    .then(function(n) {
+        console.log("Setting nonce to " + n)
+        console.log("basj: prvikey: " + privkey) 
+
+        var txs = toValList.map(function(x, i) {
+            console.log(from + ": " + x.value + " --> " + x.toAddress)
+            var valueTX = Transaction({"nonce": Int(n+i),
+                                       "value" : x.value, 
+                                       "gasLimit" : Int(21000),
+                                       "gasPrice" : Int(50000000000),
+                                       "to": x.toAddress
+                                     });
+
+            valueTX.from = Address(from);
+            valueTX.sign(privkey);
+
+            return valueTX;
+        })
+
+        console.log("Submitting txs for submitSendList: " + JSON.stringify(txs))
+        return submitTransactionList(txs);
+    });
+}
+
 function submitTransactionList(txObjList) {
   function setTXHashHandler(txHashList) { 
     return txHashList.map(function(txHash) { 
@@ -156,5 +343,8 @@ module.exports = {
     submitTransactionList: submitTransactionList,
     transaction: transaction,
     transactionLast: transactionLast,
-    transactionResult: transactionResult
+    transactionResult: transactionResult,
+    submitSendList: submitSendList,
+    submitContractCallList: submitContractCallList,
+    submitContractCreateList: submitContractCreateList
 }

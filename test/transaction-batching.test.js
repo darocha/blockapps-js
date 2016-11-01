@@ -3,11 +3,11 @@ var chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised)
 chai.should()
 
+
 var Promise = require("bluebird");
 var lib = require("..");
-var apiURL = "https://ryan-build.blockapps.net/strato-api"
+var apiURL = "http://40.84.53.181:3000"
 lib.setProfile("ethereum-frontier", apiURL);
-
 lib.handlers.enable = true;
 
 var privkey = lib.ethbase.Crypto.PrivateKey.random();

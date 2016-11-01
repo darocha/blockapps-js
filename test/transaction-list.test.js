@@ -16,7 +16,7 @@ describe("transaction list:", function() {
 			it("updates balances correctly", function() {		
 			        true.should.equal(false);
 			    });
-                        describe("nonce updates", function() { 
+              describe("nonce updates", function() { 
 				it("orders nonces correctly before dispatch", function() { 
 					true.should.equal(false);
 				    });
@@ -38,7 +38,7 @@ describe("transaction list:", function() {
 				true.should.equal(false);                               
 			    });
 
-                        it("end nonce is as expected", function() { 
+            it("end nonce is as expected", function() { 
 				true.should.equal(false);
 			    });
 
