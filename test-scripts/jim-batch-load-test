@@ -5,29 +5,34 @@ lib.handlers.enable = true;
 //lib.setProfile("ethereum-frontier", "https://strato-scale3.blockapps.net/strato-api");
 lib.setProfile("ethereum-frontier", "http://40.84.53.181:3000");
 
-var privkey = lib.ethbase.Crypto.PrivateKey('267579485e8f1f62d74836fabb15974a576fba3e3e35b0319434203a07d70fc6');
-//var privkey = lib.ethbase.Crypto.PrivateKey.random()
+var privkey = lib.ethbase.Crypto.PrivateKey.random();
 var faucet = lib.routes.faucet(privkey.toAddress());
 var account = lib.ethbase.Account(privkey.toAddress());
 
 var size = 100;
-var gapMS = 5000;
+var gapMS = 500;
+var currentNonce = 0;
+var startTime;
 
 var timesObj = { arr: [] };
 process.on('SIGQUIT', function() {
+  var sigTimeHR = process.hrtime(startTime);
+  var sigTime = sigTimeHR[0] + sigTimeHR[1]/1e9;
   var times = timesObj.arr;
   timesObj.arr = [];
 
-  process.stdout.write("\n\n")
+  process.stdout.write("\n\n");
 
-  process.stdout.write("Transmission time stats:")
+  process.stdout.write("Transmission time stats:");
   doStats(times, "s");
 
-  process.stdout.write("Transmission TPS stats:")
+  process.stdout.write("Transmission TPS stats:");
   doStats(times.map(function(time) { return size/time; }), "tx/s");
 
-  process.stdout.write("Total TPS stats:")
+  process.stdout.write("Total TPS stats:");
   doStats(times.map(function(time) { return size/(time + gapMS / 1000); }), "tx/s");
+
+  process.stdout.write("Transactions executed per second: " + currentNonce/sigTime + "\n");
 });
 
 var compileContract = lib.Solidity(`
@@ -65,7 +70,9 @@ var createContract = faucet.
   call("callFrom", privkey).
   get("contract");
 
-createContract.then(timeBatch);
+createContract.tap(function() {
+  startTime = process.hrtime();
+}).then(timeBatch);
 
 function doStats(nums, unit) {
   process.stdout.write(" (ignoring the first half of the data)\n")
@@ -88,6 +95,7 @@ function doStats(nums, unit) {
 function timeBatch(contract) {
   var sendBatch = account.nonce.
     then(function(n) {
+      currentNonce = n;
       var txList = [];
       for (i = 0; i < size; ++i) {
         var tx = contract.state.spin().txParams({nonce: n + i, gasLimit: 1000000, gasPrice: 1});
