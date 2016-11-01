@@ -2,7 +2,8 @@
 var Promise = require("bluebird");
 var lib = require("..");
 lib.handlers.enable = true;
-lib.setProfile("ethereum-frontier", "https://strato-scale3.blockapps.net/strato-api");
+//lib.setProfile("ethereum-frontier", "https://strato-scale3.blockapps.net/strato-api");
+lib.setProfile("ethereum-frontier", "http://40.84.53.181:3000");
 
 var privkey = lib.ethbase.Crypto.PrivateKey('267579485e8f1f62d74836fabb15974a576fba3e3e35b0319434203a07d70fc6');
 //var privkey = lib.ethbase.Crypto.PrivateKey.random()

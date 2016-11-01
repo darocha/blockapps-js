@@ -2,7 +2,8 @@
 var Promise = require("bluebird");
 var request = Promise.promisify(require("request"), {multiArgs: true});
 
-var blocURL = "https://strato-scale3.blockapps.net/bloc"
+var blocURL = "http://40.84.53.181:8001"
+//var blocURL = "http://localhost:8001"
 var size = 100;
 var gapMS = 3000;
 
