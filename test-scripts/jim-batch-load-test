@@ -100,7 +100,7 @@ function timeBatch(contract) {
       currentNonce = n;
       var txList = [];
       for (i = 0; i < size; ++i) {
-        var tx = contract.state.spin().txParams({nonce: n + i, gasLimit: 1000000, gasPrice: 1});
+        var tx = lib.ethbase.Transaction({nonce: n + i});//contract.state.spin().txParams({nonce: n + i, gasLimit: 1000000, gasPrice: 1})
         tx.from = privkey.toAddress();
         tx.sign(privkey);
         txList.push(tx);
