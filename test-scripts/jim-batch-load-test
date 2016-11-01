@@ -3,7 +3,7 @@ var Promise = require("bluebird");
 var lib = require("..");
 lib.handlers.enable = true;
 //lib.setProfile("ethereum-frontier", "https://strato-scale3.blockapps.net/strato-api");
-lib.setProfile("ethereum-frontier", "http://40.84.53.181:3000");
+lib.setProfile("ethereum-frontier", "https://strato-scale3.blockapps.net/strato-api");
 
 var privkey = lib.ethbase.Crypto.PrivateKey.random();
 var faucet = lib.routes.faucet(privkey.toAddress());
@@ -32,6 +32,7 @@ process.on('SIGQUIT', function() {
   process.stdout.write("Total TPS stats:");
   doStats(times.map(function(time) { return size/(time + gapMS / 1000); }), "tx/s");
 
+  process.stdout.write("Transactions executed: " + currentNonce);
   process.stdout.write("Transactions executed per second: " + currentNonce/sigTime + "\n");
 });
 
