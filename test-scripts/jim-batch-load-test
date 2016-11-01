@@ -32,8 +32,9 @@ process.on('SIGQUIT', function() {
   process.stdout.write("Total TPS stats:");
   doStats(times.map(function(time) { return size/(time + gapMS / 1000); }), "tx/s");
 
-  process.stdout.write("Transactions executed: " + currentNonce);
-  process.stdout.write("Transactions executed per second: " + currentNonce/sigTime + "\n");
+  var txNum = currentNonce - 1; // Contract creation
+  process.stdout.write("Transactions executed: " + txNum + "\n");
+  process.stdout.write("Transactions executed per second: " + txNum/sigTime + "\n");
 });
 
 var compileContract = lib.Solidity(`
