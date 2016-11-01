@@ -76,10 +76,10 @@ function txParams(given) {
             if (param in given) {
                 this[param] = "0x" + Int(given[param]).toString(16);
             }
-        }.bind(this))
-    }
-    if ("nonce" in given) {
-      this.nonce = Int(given.nonce);
+        }.bind(this));
+        if ("nonce" in given) {
+          this.nonce = Int(given.nonce);
+        }
     }
     return this;
 }
