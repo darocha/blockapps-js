@@ -1,16 +1,25 @@
 #!/usr/bin/env node
 var Promise = require("bluebird");
 var lib = require("..");
+
+var argv = require('minimist')(process.argv.slice(2), {default: 
+  { size: 100
+  , gapMS: 3000
+  , blocURL: "http://localhost:8001"}
+  , strato: "http://localhost:3000"});
+
+var blocURL = argv.blocURL;
+var size = argv.size;
+var gapMS = argv.gapMS;
+
 lib.handlers.enable = true;
-//lib.setProfile("ethereum-frontier", "https://strato-scale3.blockapps.net/strato-api");
-lib.setProfile("ethereum-frontier", "http://localhost:3000");
+
+lib.setProfile("ethereum-frontier", argv.strato);
 
 var privkey = lib.ethbase.Crypto.PrivateKey.random();
 var faucet = lib.routes.faucet(privkey.toAddress());
 var account = lib.ethbase.Account(privkey.toAddress());
 
-var size = 100;
-var gapMS = 500;
 var currentNonce = 0;
 var startTime;
 var batchesDispatched = 0;

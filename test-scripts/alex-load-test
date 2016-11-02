@@ -2,10 +2,15 @@
 var Promise = require("bluebird");
 var request = Promise.promisify(require("request"), {multiArgs: true});
 
-var blocURL = "http://40.84.53.181:8001"
-//var blocURL = "http://localhost:8001"
-var size = 100;
-var gapMS = 3000;
+var argv = require('minimist')(process.argv.slice(2), {default: 
+  { size: 100
+  , gapMS: 3000
+  , blocURL: "http://localhost:8001"}
+  , strato: "http://localhost:3000"});
+
+var blocURL = argv.blocURL;
+var size = argv.size;
+var gapMS = argv.gapMS;
 
 var timesObj = { arr: [] };
 process.on('SIGQUIT', function() {
