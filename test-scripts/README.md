@@ -14,9 +14,9 @@ You can specify the parameters on the commandline:
 
 ## Scripts
 
-This script sends batches of transactions to the address `0xdeadbeef`.
-
 ### Send value tests
+
+This script sends batches of transactions to the address `0xdeadbeef`.
 
 Using `bloc`:
 ```sh
