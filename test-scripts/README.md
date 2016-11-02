@@ -35,7 +35,8 @@ Using `bloc`:
 ### Alex load test
 
 Simulate multiple users and contract interactions.
-s
+
+
 Using `bloc`:
 
 ```sh
