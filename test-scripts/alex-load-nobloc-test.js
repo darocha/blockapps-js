@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 var Promise = require("bluebird");
 var request = Promise.promisify(require("request"), {multiArgs: true});
+var lib = require("..");
 
 var argv = require('minimist')(process.argv.slice(2), 
   { default: 
@@ -15,6 +16,9 @@ var argv = require('minimist')(process.argv.slice(2),
 var blocURL = argv.blocURL;
 var size = argv.size;
 var gapMS = argv.gapMS;
+
+lib.handlers.enable = true;
+lib.setProfile("ethereum-frontier", argv.strato);
 
 var timesObj = { arr: [] };
 process.on('SIGQUIT', function() {
@@ -51,18 +55,29 @@ function doStats(nums, unit) {
   process.stdout.write("\n");
 }
 
-newUsers().
-  then(uploadContract).
-  then(makeCalls).
-  spread(timeBatch);
+var users = ["Alex", "Bank0", "Bank1", "Bank2", "Bank3", "Bank4"];
 
-function newUsers() {
-  return Promise.mapSeries(["Alex", "Bank0", "Bank1", "Bank2", "Bank3", "Bank4"], createUser);
+userMap = {};
+Promise.each(users, 
+    u => {
+      var privkey = lib.ethbase.Crypto.PrivateKey.random(); 
+      var address = privkey.toAddress();
+      //var account = lib.ethbase.Account(address);
+      console.log(u + ": " + address)
+      userMap[u] = {address: address, privkey: privkey}
+      return lib.routes.faucet(address); // {name: u, privkey: privkey, account: account}
+    }
+  )
+  .then(x => {
 
-  function createUser(userName) {
-    return blocRoute("/users/" + userName, { faucet: "1", password: "x" })
-  }
-} 
+  })
+
+
+// newUsers().
+//   then(uploadContract).
+//   then(makeCalls).
+//   spread(timeBatch);
+
 
 function uploadContract(users) {
   return blocRoute(
