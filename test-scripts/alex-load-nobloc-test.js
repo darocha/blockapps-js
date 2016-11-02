@@ -212,14 +212,13 @@ contract BlockchainRTGSv3 {
 
 var users = ["Alex", "Bank0", "Bank1", "Bank2", "Bank3", "Bank4"];
 
-//userMap = users.map(u => {return { name: u , privkey: lib.ethbase.Crypto.PrivateKey.random()}})
 userPrivkeys = {};
 users.map(u => userPrivkeys[u] = lib.ethbase.Crypto.PrivateKey.random())
 
-Promise.each(users, 
+Promise.each(users,
     u => {
       console.log(u + ": " + userPrivkeys[u].toAddress())
-      return lib.routes.faucet(userPrivkeys[u].toAddress()); // {name: u, privkey: privkey, account: account}
+      return lib.routes.faucet(userPrivkeys[u].toAddress());
     }
   )
   .thenReturn(compileContract)
@@ -233,44 +232,8 @@ Promise.each(users,
     console.log("Starting timer")
     startTime = process.hrtime();
   })
-  //.then(timeBatch)
-
-// newUsers().
-//   then(uploadContract).
-//   then(makeCalls).
-//   spread(timeBatch);
-
-function uploadContract(users) {
-  return blocRoute(
-      "/users/Alex/" + users[0] + "/contract", 
-      { password: "x", src: contract }
-    ).
-    then(function(contractAddr) {
-      users.unshift(contractAddr);
-      return users;
-    });
-}
-
-function makeCalls2(contract){
-  var alexAddr = userPrivkeys['Alex'].toAddress();
-  var bankAddrs = users.slice(1).map(u => {return userPrivkeys[u]});
-
-  var txList = [];
-  for (i = 0; i < size; ++i) {
-    var tx = contract.state.createCentralBankTransaction(
-      { _senderBank: bankAddrs[i%5]
-      , _rcptBank: bankAddrs[(1 + i)%5]
-      , _transactionEncryptedData: ""
-      }).txParams({nonce: n + i, gasLimit: 1000000, gasPrice: 1});
-
-    tx.from = alexAddr;
-    tx.sign(userPrivkeys['Alex']);
-    txList.push(tx);
-  }
-
-  return lib.routes.submitTransactionList(txList);
-}
-
+//   .then(makeCalls).
+//   .spread(timeBatch);
 
 function setupBanks(contract){
   var alexAddr = userPrivkeys['Alex'].toAddress();
@@ -298,6 +261,28 @@ function setupBanks(contract){
     return contract.state.makeOperational().callFrom(userPrivkeys['Alex']);
   })
 }
+
+// ---------------------- not yet implemented
+
+function makeCalls2(contract){
+  var alexAddr = userPrivkeys['Alex'].toAddress();
+  var bankAddrs = users.slice(1).map(u => {return userPrivkeys[u]});
+
+  var txList = [];
+  for (i = 0; i < size; ++i) {
+    var tx = contract.state.createCentralBankTransaction(
+      { _senderBank: bankAddrs[i%5]
+      , _rcptBank: bankAddrs[(1 + i)%5]
+      , _transactionEncryptedData: ""
+      }).txParams({nonce: n + i, gasLimit: 1000000, gasPrice: 1});
+
+    tx.from = alexAddr;
+    tx.sign(userPrivkeys['Alex']);
+    txList.push(tx);
+  }
+  return lib.routes.submitTransactionList(txList);
+}
+
 
 function sendCalls(alexAddr, calls) {
   return blocRoute("/users/Alex/" + alexAddr + "/callList", calls);
