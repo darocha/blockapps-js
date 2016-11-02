@@ -55,7 +55,6 @@ function doStats(nums, unit) {
   process.stdout.write("\n");
 }
 
-
 var compileContract = lib.Solidity(`
 contract BlockchainRTGSv3 {
 
@@ -63,8 +62,6 @@ contract BlockchainRTGSv3 {
     bool public operational; 
     uint public confirmationSeconds;
     uint public totalTransactions;
-
-
 
     struct SharedSymKeys {
             string encryptedTransactionSharedSymKey;
@@ -98,14 +95,11 @@ contract BlockchainRTGSv3 {
             bool allowed;
         }
 
-
     mapping (address => Bank) public banks;
     mapping (uint => Transaction) public transactionLog;
     mapping(address => uint[]) public bankTransactions;
 
-
     BankWeb[] public banksWeb;
-
 
     function BlockchainRTGSv3(){
     
@@ -180,7 +174,6 @@ contract BlockchainRTGSv3 {
                transactionLog[totalTransactions] = Transaction(now,_senderBank,_rcptBank,msg.sender,_transactionEncryptedData,false,true);
            }
 
-
     function confirmTransaction(uint _transaction) onlyIfAllowed {
             if ((msg.sender != transactionLog[_transaction].senderBank) &&
                         (msg.sender != centralBank)) throw;
@@ -211,8 +204,6 @@ contract BlockchainRTGSv3 {
             transactionLog[_transaction].allowed = true;
         }
 
-
-
     function kill() onlyOwner {
             suicide(centralBank);
         }
@@ -236,6 +227,9 @@ Promise.each(users,
   .get("contract")
   .tap(c => {
     console.log("Uploaded BlockchainRTGSv3 at: " + c.account.address);
+  })
+  .then(setupBanks)
+  .tap(c => {
     console.log("Starting timer")
     startTime = process.hrtime();
   })
@@ -245,7 +239,6 @@ Promise.each(users,
 //   then(uploadContract).
 //   then(makeCalls).
 //   spread(timeBatch);
-
 
 function uploadContract(users) {
   return blocRoute(
@@ -258,78 +251,52 @@ function uploadContract(users) {
     });
 }
 
-function makeCalls(addrs) {
-  var contractAddr = addrs[0];
-  var alexAddr = addrs[1];
-  var bankAddrs = addrs.slice(2);
-  var calls = [];
+function makeCalls2(contract){
+  var alexAddr = userPrivkeys['Alex'].toAddress();
+  var bankAddrs = users.slice(1).map(u => {return userPrivkeys[u]});
+
+  var txList = [];
   for (i = 0; i < size; ++i) {
-    calls.push({
-      contractName: "BlockchainRTGSv3",
-      contractAddress: contractAddr,
-      methodName: "createCentralBankTransaction",
-      value: 0,
-      args: {
-        _senderBank: bankAddrs[i%5],
-        _rcptBank: bankAddrs[(1 + i)%5],
-        _transactionEncryptedData: ""
-      }
-    });
+    var tx = contract.state.createCentralBankTransaction(
+      { _senderBank: bankAddrs[i%5]
+      , _rcptBank: bankAddrs[(1 + i)%5]
+      , _transactionEncryptedData: ""
+      }).txParams({nonce: n + i, gasLimit: 1000000, gasPrice: 1});
+
+    tx.from = alexAddr;
+    tx.sign(userPrivkeys['Alex']);
+    txList.push(tx);
   }
 
-  return addFiveBanks().
-    then(makeOperational).
-    thenReturn([
-      alexAddr,
-      {
-        password: "x",
-        resolve: false,
-        txs: calls
-      }
-    ]);
+  return lib.routes.submitTransactionList(txList);
+}
 
-  function addFiveBanks() {
-    var addBankCalls = []
-    for (i = 0; i < 5; ++i) {
-      addBankCalls.push(addBankCall(i));
+
+function setupBanks(contract){
+  var alexAddr = userPrivkeys['Alex'].toAddress();
+  var bankAddrs = users.slice(1).map(u => {return userPrivkeys[u]});
+  return lib.ethbase.Account(userPrivkeys['Alex'].toAddress())
+  .nonce
+  .then(n => {
+    var txList = [];
+    for (i = 0; i < 5; ++i){
+      var tx = contract.state.addBank(
+        { _bank: bankAddrs[i]
+        , _name: "Bank" + i
+        , _certificate: ""
+        }).txParams({nonce: n + i, gasLimit: 1000000, gasPrice: 1});
+      tx.from = alexAddr;
+      tx.sign(userPrivkeys['Alex']);
+      txList.push(tx);
     }
-    return blocRoute(
-      "/users/Alex/" + alexAddr + "/callList",
-      {
-        password: "x",
-        resolve: true,
-        txs: addBankCalls
-      }
-    );
-  }
-
-  function addBankCall(i) {
-    return {
-      contractName: "BlockchainRTGSv3",
-      contractAddress: contractAddr,
-      methodName: "addBank",
-      value: 0,
-      args: {
-        _bank: bankAddrs[i],
-        _name: "Bank" + i,
-        _certificate: ""
-      }
-    };
-  }
-
-  function makeOperational() {
-    var makeOperationalCall = {
-      contract: "BlockchainRTGSv3",
-      password: "x",
-      method: "makeOperational",
-      args: {}
-    }
-    return blocRoute(
-      "/users/Alex/" + alexAddr + 
-        "/contract/BlockchainRTGSv3/" + contractAddr + "/call",
-      makeOperationalCall);
-  }
-
+    //return contract.state.makeOperational().callFrom(userPrivkeys['Alex']);
+    console.log("adding banks")
+    return lib.routes.submitTransactionList(txList);
+  })
+  .then(_ => {
+    console.log("making operational")
+    return contract.state.makeOperational().callFrom(userPrivkeys['Alex']);
+  })
 }
 
 function sendCalls(alexAddr, calls) {
