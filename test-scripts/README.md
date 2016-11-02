@@ -20,7 +20,12 @@ This script sends batches of transactions to the address `0xdeadbeef`.
 
 Using `bloc`:
 ```sh
-./send-load-test --size 100 --gapMS 3000 --blocURL "http://localhost:8000"
+./send-load-bloc-test --size 100 --gapMS 3000 --blocURL "http://localhost:8000"
+```
+
+Using `blockapps-js`:
+```sh
+./send-load-nobloc-test --size 100 --gapMS 3000 --strato "http://localhost:3000"
 ```
 
 ### Complex contract interaction
