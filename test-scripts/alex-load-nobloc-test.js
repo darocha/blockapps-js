@@ -17,6 +17,17 @@ var blocURL = argv.blocURL;
 var size = argv.size;
 var gapMS = argv.gapMS;
 
+var currentNonce = 0;
+var startTime;
+var batchesDispatched = 0;
+
+var users = ["Alex", "Bank0", "Bank1", "Bank2", "Bank3", "Bank4"];
+userPrivkeys = {};
+users.map(u => userPrivkeys[u] = lib.ethbase.Crypto.PrivateKey.random())
+
+var alexAddr = userPrivkeys['Alex'].toAddress();
+var bankAddrs = users.slice(1).map(u => {return userPrivkeys[u]});
+
 lib.handlers.enable = true;
 lib.setProfile("ethereum-frontier", argv.strato);
 
@@ -210,11 +221,6 @@ contract BlockchainRTGSv3 {
 }
 `).call("construct");
 
-var users = ["Alex", "Bank0", "Bank1", "Bank2", "Bank3", "Bank4"];
-
-userPrivkeys = {};
-users.map(u => userPrivkeys[u] = lib.ethbase.Crypto.PrivateKey.random())
-
 Promise.each(users,
     u => {
       console.log(u + ": " + userPrivkeys[u].toAddress())
@@ -232,12 +238,9 @@ Promise.each(users,
     console.log("Starting timer")
     startTime = process.hrtime();
   })
-//   .then(makeCalls).
-//   .spread(timeBatch);
+  .then(timeBatch);
 
 function setupBanks(contract){
-  var alexAddr = userPrivkeys['Alex'].toAddress();
-  var bankAddrs = users.slice(1).map(u => {return userPrivkeys[u]});
   return lib.ethbase.Account(userPrivkeys['Alex'].toAddress())
   .nonce
   .then(n => {
@@ -252,7 +255,6 @@ function setupBanks(contract){
       tx.sign(userPrivkeys['Alex']);
       txList.push(tx);
     }
-    //return contract.state.makeOperational().callFrom(userPrivkeys['Alex']);
     console.log("adding banks")
     return lib.routes.submitTransactionList(txList);
   })
@@ -260,59 +262,48 @@ function setupBanks(contract){
     console.log("making operational")
     return contract.state.makeOperational().callFrom(userPrivkeys['Alex']);
   })
-}
-
-// ---------------------- not yet implemented
-
-function makeCalls2(contract){
-  var alexAddr = userPrivkeys['Alex'].toAddress();
-  var bankAddrs = users.slice(1).map(u => {return userPrivkeys[u]});
-
-  var txList = [];
-  for (i = 0; i < size; ++i) {
-    var tx = contract.state.createCentralBankTransaction(
-      { _senderBank: bankAddrs[i%5]
-      , _rcptBank: bankAddrs[(1 + i)%5]
-      , _transactionEncryptedData: ""
-      }).txParams({nonce: n + i, gasLimit: 1000000, gasPrice: 1});
-
-    tx.from = alexAddr;
-    tx.sign(userPrivkeys['Alex']);
-    txList.push(tx);
-  }
-  return lib.routes.submitTransactionList(txList);
+  .then(_ => {
+    return contract;
+  })
 }
 
 
-function sendCalls(alexAddr, calls) {
-  return blocRoute("/users/Alex/" + alexAddr + "/callList", calls);
-}
+function timeBatch(contract) {
+  var sendBatch = lib.ethbase.Account(userPrivkeys['Alex'].toAddress())
+  .nonce
+  .then(function(n) {
 
-function timeBatch(alexAddr, calls) {
-  process.stdout.write("# Sending " + size + " transactions\n");
+    currentNonce = n;
+    var totalDispatchedTX = batchesDispatched * size;
+    var txList = [];
 
-  var time0 = process.hrtime();
-  var sendBatch = sendCalls(alexAddr, calls).
-    then(function() {
-      var durationHR = process.hrtime(time0);
-      var duration = durationHR[0] + durationHR[1]/1e9;
-      timesObj.arr.push(duration);
-      process.stdout.write(duration + "\n");
-    });
+    process.stdout.write("nonce before dispatch: " + n + "\n");
+    process.stdout.write("total dispatched tx before dispatch: " + totalDispatchedTX + "\n");
 
-  return Promise.delay(gapMS, sendBatch).
-    then(function() { return timeBatch(alexAddr, calls); });
-}
+    batchesDispatched++;
 
-function blocRoute(routePath, postBody) {
-  var requestOptions = {
-    uri: blocURL + routePath,
-    method: "POST",
-    rejectUnauthorized: false,
-    requestCert: true,
-    agent: false,
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(postBody)
-  };
-  return request(requestOptions).get(1);
+    for (i = 0; i < size; ++i) {
+      var tx = contract.state.createCentralBankTransaction(
+        { _senderBank: bankAddrs[i%5]
+        , _rcptBank: bankAddrs[(1 + i)%5]
+        , _transactionEncryptedData: ""
+        }).txParams({nonce: totalDispatchedTX + 1 + i, gasLimit: 1000000, gasPrice: 1});
+      tx.from = alexAddr;
+      tx.sign(userPrivkeys['Alex']);
+      txList.push(tx);
+    }
+
+    process.stdout.write("# Sending " + size + " transactions\n");
+
+    var time0 = process.hrtime();
+    return lib.routes.submitTransactionList(txList).
+      tap(function() {
+        var durationHR = process.hrtime(time0);
+        var duration = durationHR[0] + durationHR[1]/1e9;
+        timesObj.arr.push(duration);
+        process.stdout.write(duration + "\n");
+      });
+  });
+
+  return Promise.delay(gapMS, sendBatch).thenReturn(contract).then(timeBatch);
 }
