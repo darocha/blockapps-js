@@ -125,7 +125,7 @@ function submitContractCallList(callList, from, privkey){
             return toret;
         })
 
-        console.log("Submitting txs for submitContractCreateList: " + JSON.stringify(txs))
+        //console.log("Submitting txs for submitContractCreateList: " + JSON.stringify(txs))
         return submitTransactionList(txs);
     });
 }
@@ -185,7 +185,7 @@ function submitContractCreateList(contractList, from, privkey){
             return toret;
         })
 
-        console.log("Submitting txs for submitContractCreateList: " + JSON.stringify(txs))
+        //console.log("Submitting txs for submitContractCreateList: " + JSON.stringify(txs))
         return submitTransactionList(txs);
     });
 }
@@ -233,7 +233,7 @@ function submitSendList(toValList, from, privkey){
             return valueTX;
         })
 
-        console.log("Submitting txs for submitSendList: " + JSON.stringify(txs))
+        //console.log("Submitting txs for submitSendList: " + JSON.stringify(txs))
         return submitTransactionList(txs);
     });
 }
