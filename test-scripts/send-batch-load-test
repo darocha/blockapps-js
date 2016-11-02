@@ -25,6 +25,7 @@ var account = lib.ethbase.Account(privkey.toAddress());
 
 var currentNonce = 0;
 var startTime;
+var batchesDispatched = 0;
 
 var timesObj = { arr: [] };
 process.on('SIGQUIT', function() {
@@ -45,8 +46,11 @@ process.on('SIGQUIT', function() {
   doStats(times.map(function(time) { return size/(time + gapMS / 1000); }), "tx/s");
 
   var txNum = currentNonce - 1; // Contract creation
+  process.stdout.write("Batches dispatched: " + batchesDispatched + "\n");
   process.stdout.write("Transactions executed: " + txNum + "\n");
   process.stdout.write("Transactions executed per second: " + txNum/sigTime + "\n");
+  process.stdout.write("Time so far: " + sigTime + "\n");
+
 });
 
 var compileContract = lib.Solidity(`
@@ -109,10 +113,18 @@ function doStats(nums, unit) {
 function timeBatch(contract) {
   var sendBatch = account.nonce.
     then(function(n) {
+
       currentNonce = n;
+      var totalDispatchedTX = batchesDispatched * size;
+
+      process.stdout.write("nonce before dispatch: " + n + "\n");
+      process.stdout.write("total dispatched tx before dispatch: " + totalDispatchedTX + "\n");
+
+      batchesDispatched++;
+
       var txList = [];
       for (i = 0; i < size; ++i) {
-        var tx = lib.ethbase.Transaction({nonce: n + i});//contract.state.spin().txParams({nonce: n + i, gasLimit: 1000000, gasPrice: 1})
+        var tx = lib.ethbase.Transaction({nonce: totalDispatchedTX + 1 + i});//contract.state.spin().txParams({nonce: n + i, gasLimit: 1000000, gasPrice: 1})
         tx.from = privkey.toAddress();
         tx.sign(privkey);
         txList.push(tx);

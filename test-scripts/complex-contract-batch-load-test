@@ -114,11 +114,18 @@ function doStats(nums, unit) {
 function timeBatch(contract) {
   var sendBatch = account.nonce.
     then(function(n) {
-      batchesDispatched++;
+
       currentNonce = n;
+      var totalDispatchedTX = batchesDispatched * size;
       var txList = [];
+
+      process.stdout.write("nonce before dispatch: " + n + "\n");
+      process.stdout.write("total dispatched tx before dispatch: " + totalDispatchedTX + "\n");
+
+      batchesDispatched++;
+
       for (i = 0; i < size; ++i) {
-        var tx = contract.state.spin().txParams({nonce: n + i, gasLimit: 1000000, gasPrice: 1});
+        var tx = contract.state.spin().txParams({nonce: totalDispatchedTX + 1 + i, gasLimit: 1000000, gasPrice: 1});
         tx.from = privkey.toAddress();
         tx.sign(privkey);
         txList.push(tx);
