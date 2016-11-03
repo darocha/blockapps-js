@@ -164,22 +164,27 @@ function constrFrom(privkey) {
   function setContractHandler(txHandlers) {
     var contract = this;
     var txResult = handlers.enable ? txHandlers.txResult : txHandlers;
-    txHandlers.contract = 
-      Promise.resolve(txResult).
-      get("contractsCreated").
-      tap(function(addrList){
-        if (addrList.length !== 1) {
-          throw new Error("constructor must create a single account");
-        }
-      }).
-      get(0).
-      then(Address).
-      then(function(addr) {
-        contract.address = addr;
-      }).
-      thenReturn(contract).
-      then(attach).
-      tagExcepts("contract handler");
+
+    Object.defineProperty(txHandlers, "contract", {
+      get: function() {
+        return Promise.resolve(txResult).
+          get("contractsCreated").
+          tap(function(addrList){
+            if (addrList.length !== 1) {
+              throw new Error("constructor must create a single account");
+            }
+          }).
+          get(0).
+          then(Address).
+          then(function(addr) {
+            contract.address = addr;
+          }).
+          thenReturn(contract).
+          then(attach).
+          tagExcepts("contract handler");
+      },
+      enumerable: true
+    })
     return txHandlers;
   }
 

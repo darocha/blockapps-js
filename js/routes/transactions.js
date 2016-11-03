@@ -25,9 +25,16 @@ function faucet(address) {
 }
 
 function submitTransaction(txObj) {
-  function setTXHashHandler(txHash) { return { txHash: Promise.resolve(txHash) }; }
+  function setTXHashHandler(txHash) { 
+    return Object.create({}, {
+      txHash: {
+        get: function() { return Promise.resolve(txHash) },
+        enumerable: true
+      }
+    });
+  }
   function setTXResultHandler(txHandlers) {
-      return txBasicHandler(txHandlers);
+    return txBasicHandler(txHandlers);
   }
 
   var result = 
@@ -39,15 +46,19 @@ function submitTransaction(txObj) {
 }
 
 function txBasicHandler(txHandlers) { 
-    txHandlers.txResult = 
-      txHandlers.txHash.
-      then(function(txHash) { return pollPromise(transactionResult.bind(null, txHash)); }).
-      catch(Promise.TimeoutError, function() {
-          throw new Error(
-              "waited " + pollPromise.defaults.pollTimeoutMS / 1000 + " seconds"
-          );
-      }).
-      tagExcepts("txResult handler");
+    Object.defineProperty(txHandlers, "txResult", {
+      get: function() {
+        return txHandlers.txHash.
+          then(function(txHash) { return pollPromise(transactionResult.bind(null, txHash)); }).
+          catch(Promise.TimeoutError, function() {
+              throw new Error(
+                  "waited " + pollPromise.defaults.pollTimeoutMS / 1000 + " seconds"
+              );
+          }).
+          tagExcepts("txResult handler");
+      },
+      enumerable: true
+    });
     return txHandlers;
 }
 

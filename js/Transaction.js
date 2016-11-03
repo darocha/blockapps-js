@@ -87,6 +87,10 @@ function signTX(privkey) {
     this.r = rsv.r;
     this.s = rsv.s;
     this.v = rsv.v;
+    if (!this.from) {
+      this.from = privkey.toAddress();
+    }
+    return this;
 }
 
 function txHash(full) {
@@ -101,36 +105,28 @@ function txHash(full) {
 
 function sendTX(privKeyFrom, addressTo) {
     var tx = this;
-    try {
-        privKeyFrom = Crypto.PrivateKey(privKeyFrom);
-        tx.from = privKeyFrom.toAddress()
-        if (arguments.length > 1) {
-            tx.to = Address(addressTo);
-        }
-    }
-    catch(e) {
-        throw errors.pushTag("Transaction")(e);
+    this.from = Crypto.PrivateKey(privKeyFrom).toAddress();
+    if (addressTo) {
+      tx.to = Address(addressTo);
     }
 
-    var setNonce;
-    if ("nonce" in tx) {
-      setNonce = Promise.resolve();
-    }
-    else {
-      setNonce = 
-        Account(tx.from).nonce.
+    function setNonce() {
+      if ("nonce" in tx) {
+        return Promise.resolve(tx);
+      }
+      else {
+        return Account(tx.from).nonce.
           then(function(nonce) {
             tx.nonce = nonce;
+            return tx;
           });
+      }
     }
-    var result = 
-      setNonce.
-        then(function() { 
-          tx.sign(privKeyFrom);
-          return submitTransaction(tx);
-        }).
-        tagExcepts("Transaction");
-    return result;
+
+    return setNonce().
+      call("sign", privKeyFrom).
+      then(submitTransaction).
+      tagExcepts("Transaction");
 }
 
 function txToJSON() {

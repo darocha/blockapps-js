@@ -87,26 +87,32 @@ function txParams(given) {
 function callFrom(typesDef, from) {
   function setReturnValueHandler(maybeTXHandlers) {
     var ret = this;
+
+    // IF handlers.enable == true, then this.send returned a dictionary of
+    // handlers and we have to fetch the txResult ourselves
+    // If handlers.enable == false, then this.send returned the txResult
+    // directly.
     var txResult = 
       handlers.enable ? maybeTXHandlers.txResult : Promise.resolve(maybeTXHandlers);
-    maybeTXHandlers.returnValue =
-      // IF handlers.enable == true, then this.send returned a dictionary of
-      // handlers and we have to fetch the txResult ourselves
-      // If handlers.enable == false, then this.send returned the txResult
-      // directly.
-      txResult.
-      get("response").
-      then(function(r) {
-        var result = decodeReturn(typesDef, ret, r);
-        switch (result.length) {
-        case 0:
-            return null;
-        case 1:
-            return result[0];
-        default:
-            return result;
-        }
-      });
+
+    Object.defineProperty(maybeTXHandlers, "returnValue", {
+      get: function() {
+        return txResult.
+          get("response").
+          then(function(r) {
+            var result = decodeReturn(typesDef, ret, r);
+            switch (result.length) {
+            case 0:
+                return null;
+            case 1:
+                return result[0];
+            default:
+                return result;
+            }
+          });
+      },
+      enumerable: true
+    })
     return maybeTXHandlers;
   }
 
