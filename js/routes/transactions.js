@@ -89,16 +89,12 @@ function submitContractCallList(callList, from, privkey){
             var value = c.value;
             var args = c.args;
             var txParams = c.txParams || {};        
-            console.log("calling " + name + "." + method + "(" + JSON.stringify(args) + ")")
-            console.log("bajs: prvikey: " + privkey) 
 
             var contract = Solidity.attach(contractJson);
-            console.log("Contract: " + JSON.stringify(contract) )
 
             value = Math.max(0, value)
             if (value != undefined) {
               var pv = Units.convertEth(value).from("ether").to("wei" );
-              console.log("pv: " + pv.toString(10))
             }
             txParams.value = pv.toString(10);
 
@@ -110,7 +106,6 @@ function submitContractCallList(callList, from, privkey){
                 res.send("failed to look at state for contract: " + error)
                 return;
               }
-              console.log("Making function call now")
             } else {
               console.log("contract " + contractName + " doesn't have method: " + method);
               res.send("contract " + contractName + " doesn't have method: " + method);
@@ -125,7 +120,7 @@ function submitContractCallList(callList, from, privkey){
             return toret;
         })
 
-        console.log("Submitting txs for submitContractCreateList: " + JSON.stringify(txs))
+        //console.log("Submitting txs for submitContractCreateList: " + JSON.stringify(txs))
         return submitTransactionList(txs);
     });
 }
@@ -164,7 +159,6 @@ function submitContractCreateList(contractList, from, privkey){
             var args = c.args;
             var txParams = c.txParams || {};
             console.log("trying contract " + name + " with args " + JSON.stringify(args))
-            console.log("bajs: prvikey: " + privkey) 
 
             var solObj = Solidity.attach(contractJson);
 
@@ -185,7 +179,7 @@ function submitContractCreateList(contractList, from, privkey){
             return toret;
         })
 
-        console.log("Submitting txs for submitContractCreateList: " + JSON.stringify(txs))
+        //console.log("Submitting txs for submitContractCreateList: " + JSON.stringify(txs))
         return submitTransactionList(txs);
     });
 }
@@ -215,9 +209,6 @@ function submitSendList(toValList, from, privkey){
 
     return Account(from).nonce
     .then(function(n) {
-        console.log("Setting nonce to " + n)
-        console.log("basj: prvikey: " + privkey) 
-
         var txs = toValList.map(function(x, i) {
             console.log(from + ": " + x.value + " --> " + x.toAddress)
             var valueTX = Transaction({"nonce": Int(n+i),
@@ -229,11 +220,10 @@ function submitSendList(toValList, from, privkey){
 
             valueTX.from = Address(from);
             valueTX.sign(privkey);
-
             return valueTX;
         })
 
-        console.log("Submitting txs for submitSendList: " + JSON.stringify(txs))
+        //console.log("Submitting txs for submitSendList: " + JSON.stringify(txs))
         return submitTransactionList(txs);
     });
 }
