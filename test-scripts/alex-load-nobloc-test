@@ -33,6 +33,8 @@ lib.setProfile("ethereum-frontier", argv.strato);
 
 var timesObj = { arr: [] };
 process.on('SIGQUIT', function() {
+  var sigTimeHR = process.hrtime(startTime);
+  var sigTime = sigTimeHR[0] + sigTimeHR[1]/1e9;
   var times = timesObj.arr;
   timesObj.arr = [];
 
@@ -45,7 +47,15 @@ process.on('SIGQUIT', function() {
   doStats(times.map(function(time) { return size/time; }), "tx/s");
 
   process.stdout.write("Total TPS stats:")
-  doStats(times.map(function(time) { return size/(time + gapMS / 1000); }), "tx/s");
+  doStats(times.map(function(time) { return size/(time + gapMS / 1000); }), "tx/s")
+
+  var txNum = currentNonce - 1; // Contract creation
+  process.stdout.write("Batches dispatched: " + batchesDispatched + "\n");
+  process.stdout.write("Transactions executed: " + txNum + "\n");
+  process.stdout.write("Transactions executed per second: " + txNum/sigTime + "\n");
+  process.stdout.write("Time so far: " + sigTime + "\n");
+
+;
 });
 
 function doStats(nums, unit) {
