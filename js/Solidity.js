@@ -169,11 +169,11 @@ function constrFrom(privkey) {
       get: function() {
         return Promise.resolve(txResult).
           get("contractsCreated").
-          tap(function(addrList){
-            if (addrList.length !== 1) {
-              throw new Error("constructor must create a single account");
-            }
-          }).
+//          tap(function(addrList){
+//            if (addrList.length !== 1) {
+//              throw new Error("constructor must create a single account");
+//            }
+//          }).
           get(0).
           then(Address).
           then(function(addr) {
