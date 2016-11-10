@@ -25,7 +25,7 @@ function faucet(address) {
 }
 
 function submitTransaction(txObj) {
-  function setTXHashHandler(txHash) { 
+  function setTXHashHandler(txHash) {
     return Object.create({}, {
       txHash: {
         get: function() { return Promise.resolve(txHash) },
@@ -37,7 +37,7 @@ function submitTransaction(txObj) {
     return txBasicHandler(txHandlers);
   }
 
-  var result = 
+  var result =
     HTTPQuery("/transaction", {"data":txObj}).
     then(setTXHashHandler).
     then(setTXResultHandler).
@@ -45,7 +45,7 @@ function submitTransaction(txObj) {
   return handlers.enable ? result : result.get("txResult");
 }
 
-function txBasicHandler(txHandlers) { 
+function txBasicHandler(txHandlers) {
     Object.defineProperty(txHandlers, "txResult", {
       get: function() {
         return txHandlers.txHash.
@@ -80,7 +80,7 @@ function txBasicHandler(txHandlers) {
  * @param {[TransactionCall]} callList - list of calls
  * @param {Address} from - the from address
  * @returns {PrivateKey} - the private key
- */ 
+ */
 function submitContractCallList(callList, from, privkey){
 
     var Account = require("../Account.js");
@@ -92,14 +92,14 @@ function submitContractCallList(callList, from, privkey){
 
     return Account(from).nonce
     .then(function(n) {
-
+        var nonceIndex = 0;
         var txs = callList.map(function(c, i){
             var contractJson = c.contractJson;
             var name = c.contractName;
             var method = c.methodName;
             var value = c.value;
             var args = c.args;
-            var txParams = c.txParams || {};        
+            var txParams = c.txParams || {};
 
             var contract = Solidity.attach(contractJson);
 
@@ -109,24 +109,29 @@ function submitContractCallList(callList, from, privkey){
             }
             txParams.value = pv.toString(10);
 
+
             if(contract.state[method] != undefined){
               try {
                 var toret = contract.state[method](args).txParams(txParams);
               } catch (error){
                 console.log("failed to look at state for contract: " + error)
-                res.send("failed to look at state for contract: " + error)
-                return;
+                return {
+                  error: "failed to look at state for contract: " + error,
+                };
               }
             } else {
               console.log("contract " + contractName + " doesn't have method: " + method);
-              res.send("contract " + contractName + " doesn't have method: " + method);
+              return {
+                error: "contract " + contractName + " doesn't have method: " + method,
+              };
               return;
-            } 
-
-            toret.nonce = Int(n+i);
+            }
+            toret.nonce = Int(n+nonceIndex);
             toret.from = Address(from);
             toret.txParams(txParams);
             toret.sign(privkey);
+
+            nonceIndex++;
 
             return toret;
         })
@@ -152,7 +157,7 @@ function submitContractCallList(callList, from, privkey){
  * @param {[TransactionCall]} contractList - list of calls
  * @param {Address} from - the from address
  * @returns {PrivateKey} - the private key
- */ 
+ */
 function submitContractCreateList(contractList, from, privkey){
 
     var Account = require("../Account.js");
@@ -210,7 +215,7 @@ function submitContractCreateList(contractList, from, privkey){
  * @param {[TransactionCall]} toValList - list of transactions
  * @param {Address} from - the from address
  * @returns {PrivateKey} - the private key
- */ 
+ */
 function submitSendList(toValList, from, privkey){
 
     var Account = require("../Account.js");
@@ -223,7 +228,7 @@ function submitSendList(toValList, from, privkey){
         var txs = toValList.map(function(x, i) {
             console.log(from + ": " + x.value + " --> " + x.toAddress)
             var valueTX = Transaction({"nonce": Int(n+i),
-                                       "value" : x.value, 
+                                       "value" : x.value,
                                        "gasLimit" : Int(21000),
                                        "gasPrice" : Int(50000000000),
                                        "to": x.toAddress
@@ -240,21 +245,58 @@ function submitSendList(toValList, from, privkey){
 }
 
 function submitTransactionList(txObjList) {
-  function setTXHashHandler(txHashList) { 
-    return txHashList.map(function(txHash) { 
-      return {txHash: Promise.resolve(txHash)}
+  function setTXHashHandler(txHashList) {
+    return txHashList.map(function(txHash) {
+      if(txHash === `undefined`){
+        return "wrong tx";
+      } else {
+        return {txHash: Promise.resolve(txHash)}
+      }
     });
   }
   function setTXResultHandler(txHandlerList) {
       return txHandlerList.map(txBasicHandler);
   }
 
-  var result = 
-    HTTPQuery("/transactionList", {"data":txObjList}).
+  console.log('txObjList>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',txObjList);
+  var filterTxList = txObjList.filter(function(item) {
+    if(item.error) {
+      return false;
+    } else {
+      return true;
+    }
+  });
+
+  console.log('filterTxList>>>>>>>>>>>>>>',filterTxList);
+  var result =
+
+    HTTPQuery("/transactionList", {"data":filterTxList}).
     then(setTXHashHandler).
     then(setTXResultHandler).
     tagExcepts("submitTransactionList");
-  return handlers.enable ? result : result.get("txResult");
+
+    if(handlers.enable) {
+      return result.then(function(txResults){
+        txObjList.forEach(function(item, i) {
+          if(item.error) {
+            txResults.splice(i,0,item);
+          }
+        });
+        console.log('returning handlers.enable === true txResults', txResults);
+        return txResults;
+      });
+    } else {
+      return result.get("txResult").then(function(txResults){
+        txObjList.forEach(function(item, i) {
+          if(item.error) {
+            txResults.splice(i,0,item);
+          }
+        });
+        console.log('returning handlers.enable === false txResults', txResults);
+        return txResults;
+      });
+    }
+  // return handlers.enable ? result : result.get("txResult");
 }
 
 function transaction(transactionQueryObj) {
@@ -298,6 +340,7 @@ function transactionLast(n) {
 }
 
 function transactionResult(txHash) {
+    console.log(txHash);
     try {
         if (typeof txHash !== "string" || !txHash.match(/^[0-9a-fA-F]*$/)) {
             throw new Error("txHash must be a hex string (got: " + txHash + ")");
@@ -325,6 +368,7 @@ function transactionResult(txHash) {
             if (txResult.message !== "Success!") {
                 var msg = "Transaction failed with transaction result:\n"
                     + JSON.stringify(txResult, undefined, "  ") + "\n";
+                    console.log(msg);
                 return transaction({hash: txHash}).
                     then(function(tx) {
                         throw new Error(msg + "\nTransaction was:\n" +
@@ -336,7 +380,7 @@ function transactionResult(txHash) {
             return txResult;
         }).
         tagExcepts("transactionResult");
-} 
+}
 
 module.exports = {
     faucet: faucet,
