@@ -258,7 +258,6 @@ function submitTransactionList(txObjList) {
       return txHandlerList.map(txBasicHandler);
   }
 
-  console.log('txObjList>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',txObjList);
   var filterTxList = txObjList.filter(function(item) {
     if(item.error) {
       return false;
@@ -267,7 +266,6 @@ function submitTransactionList(txObjList) {
     }
   });
 
-  console.log('filterTxList>>>>>>>>>>>>>>',filterTxList);
   var result =
 
     HTTPQuery("/transactionList", {"data":filterTxList}).
@@ -282,7 +280,6 @@ function submitTransactionList(txObjList) {
             txResults.splice(i,0,item);
           }
         });
-        console.log('returning handlers.enable === true txResults', txResults);
         return txResults;
       });
     } else {
@@ -292,7 +289,6 @@ function submitTransactionList(txObjList) {
             txResults.splice(i,0,item);
           }
         });
-        console.log('returning handlers.enable === false txResults', txResults);
         return txResults;
       });
     }
