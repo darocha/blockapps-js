@@ -20,12 +20,12 @@ This script sends batches of transactions to the address `0xdeadbeef`.
 
 Using `bloc`:
 ```sh
-./send-load-bloc-test --size 100 --gapMS 3000 --blocURL "http://localhost:8000"
+./test-scripts/send-load-bloc-test --size 100 --gapMS 3000 --blocURL "http://localhost:8000"
 ```
 
 Using `blockapps-js`:
 ```sh
-./send-load-nobloc-test --size 100 --gapMS 3000 --strato "http://localhost:3000"
+./test-scripts/send-load-nobloc-test --size 100 --gapMS 3000 --strato "http://localhost:3000"
 ```
 
 ### Complex contract interaction
@@ -34,7 +34,7 @@ This simulates interaction with a computationally intensive Solidity contract.
 
 Using `bloc`:
 ```sh
-./complex-contract-batch-load-test  --size 10  --strato "http://localhost:3000"
+./test-scripts/complex-contract-batch-load-test  --size 10  --strato "http://localhost:3000"
 ```
 
 ### Alex load test
@@ -45,10 +45,10 @@ Simulate multiple users and contract interactions.
 Using `bloc`:
 
 ```sh
-./alex-load-bloc-test --size 100 --gapMS 3000 --blocURL "http://localhost:8000"
+./test-scripts/alex-load-bloc-test --size 100 --gapMS 3000 --blocURL "http://localhost:8000"
 ```
 
 Using `blockapps-js`:
 ```sh
-./alex-load-nobloc-test --size 100 --gapMS 3000 --strato "http://localhost:3000"
+./test-scripts/alex-load-nobloc-test --size 100 --gapMS 3000 --strato "http://localhost:3000"
 ```
