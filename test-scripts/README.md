@@ -34,7 +34,7 @@ This simulates interaction with a computationally intensive Solidity contract.
 
 Using `bloc`:
 ```sh
-./test-scripts/complex-contract-batch-load-test  --size 10  --strato "http://localhost:3000"
+./test-scripts/complex-contract-batch-load-test  --size 10  --blocURL "http://localhost:8000"
 ```
 
 ### Alex load test
