@@ -53,17 +53,24 @@ function solMethod(typesDef, funcDef, name) {
         });
 
         result.txParams = txParams;
-        result.callFrom = callFrom.bind(result, typesDef);
+        result.callFrom = function(privkey) {
+          return this.send(privkey).then(this.setHandler)
+        } 
+        var valsDef = {
+          type: "Array",
+          entries: vals,
+          length: Object.keys(vals).length
+        };
         Object.defineProperties(result, {
             "_ret" : {
-                value: {
-                    type: "Array",
-                    entries: vals,
-                    length: Object.keys(vals).length
-                }                
+                value: valsDef
             },
             "_solObj" : {
                 value: solObj
+            },
+            "setHandler" : {
+                value: setReturnValueHandler.bind(null, typesDef, valsDef),
+                writable: true
             }
         });
         return result;
@@ -84,40 +91,33 @@ function txParams(given) {
     return this;
 }
 
-function callFrom(typesDef, from) {
-  function setReturnValueHandler(maybeTXHandlers) {
-    var ret = this;
+function setReturnValueHandler(typesDef, valsDef, maybeTXHandlers) {
+  // If handlers.enable == true, then this.send returned a dictionary of
+  // handlers and we have to fetch the txResult ourselves
+  // If handlers.enable == false, then this.send returned the txResult
+  // directly.
+  var txResult = 
+    handlers.enable ? maybeTXHandlers.txResult : Promise.resolve(maybeTXHandlers);
 
-    // IF handlers.enable == true, then this.send returned a dictionary of
-    // handlers and we have to fetch the txResult ourselves
-    // If handlers.enable == false, then this.send returned the txResult
-    // directly.
-    var txResult = 
-      handlers.enable ? maybeTXHandlers.txResult : Promise.resolve(maybeTXHandlers);
-
-    Object.defineProperty(maybeTXHandlers, "returnValue", {
-      get: function() {
-        return txResult.
-          get("response").
-          then(function(r) {
-            var result = decodeReturn(typesDef, ret, r);
-            switch (result.length) {
+  Object.defineProperty(maybeTXHandlers, "returnValue", {
+    get: function() {
+      return txResult.
+        get("response").
+        then(function(r) {
+          var result = decodeReturn(typesDef, valsDef, r);
+          switch (result.length) {
             case 0:
-                return null;
+              return null;
             case 1:
-                return result[0];
+              return result[0];
             default:
-                return result;
-            }
-          });
-      },
-      enumerable: true
-    })
-    return maybeTXHandlers;
-  }
-
-  var result = this.send(from).then(setReturnValueHandler.bind(this._ret));
-  return handlers.enable ? result : result.get("returnValue");
+              return result;
+          }
+        });
+    },
+    enumerable: true
+  })
+  return handlers.enable ? maybeTXHandlers : maybeTXHandlers.returnValue;
 }
 
 function funcArgs(selector, argsList, x) {

@@ -1,7 +1,9 @@
 var rlp = require('rlp');
 var Crypto = require("./Crypto.js");
 var sha3 = Crypto.keccak256;
-var submitTransaction = require("./Routes.js").submitTransaction;
+var routes = require("./Routes.js");
+var submitTransaction = routes.submitTransaction;
+var submitTransactionList = routes.submitTransactionList;
 var Account = require("./Account.js");
 var Address = require("./Address.js");
 var Int = require("./Int.js");
@@ -16,6 +18,7 @@ var defaults = {
 };
 
 module.exports.defaults = defaults;
+module.exports.sendList = sendTXList;
 
 // argObj = {
 //   data:, value:, gasPrice:, gasLimit:, nonce:
@@ -126,7 +129,23 @@ function sendTX(privKeyFrom, addressTo) {
     return setNonce().
       call("sign", privKeyFrom).
       then(submitTransaction).
-      tagExcepts("Transaction");
+      tagExcepts("send");
+}
+
+function sendTXList(txList, privKeyFrom) {
+  var addressFrom = Crypto.PrivateKey(privKeyFrom).toAddress();
+  function prepareTX(tx, nonce) {
+    tx.from = addressFrom;
+    tx.nonce = nonce;
+    return tx.sign(privKeyFrom);
+  }
+
+  return Account(addressFrom).nonce.
+    then(function(nonce) { 
+      return txList.map(function(tx, i) { return prepareTX(tx, nonce.plus(i)); });
+    })
+    then(submitTransactionList).
+    tagExcepts("sendList");
 }
 
 function txToJSON() {

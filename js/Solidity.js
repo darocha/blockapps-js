@@ -7,6 +7,7 @@ var Int = require("./Int.js");
 var Storage = require("./Storage.js");
 var Promise = require('bluebird');
 var Enum = require('./solidity/enum');
+var Transaction = require('./Transaction.js');
 
 var keccak256 = require("./Crypto.js").keccak256;
 
@@ -20,6 +21,7 @@ var errors = require("./errors.js");
 var handlers = require("./handlers.js");
 
 module.exports = Solidity;
+module.exports.sendList = sendSolTXList;
 
 // string argument as in solc(code, _)
 // object argument as in solc(_, dataObj)
@@ -95,7 +97,10 @@ Solidity.prototype = {
             var tx = solMethod.
                 call(this, this.xabi.types, constrDef, this.name).
                 apply(Address(null), arguments);
-            tx.callFrom = constrFrom;
+            tx.callFrom = function(privkey) {
+              return this.send(privkey).then(this.setHandler);
+            }
+            tx.setHandler = setContractHandler.bind(tx._solObj);
             return tx;
         }
         catch (e) {
@@ -160,40 +165,37 @@ function makeSolidity(xabi, bin, binr, contract) {
     );
 }
 
-function constrFrom(privkey) {
-  function setContractHandler(txHandlers) {
-    var contract = this;
-    var txResult = handlers.enable ? txHandlers.txResult : txHandlers;
+function setContractHandler(txHandlers) {
+  var contract = this;
+  var txResult = handlers.enable ? txHandlers.txResult : txHandlers;
 
-    Object.defineProperty(txHandlers, "contract", {
-      get: function() {
-        return Promise.resolve(txResult).
-          get("contractsCreated").
-//          tap(function(addrList){
-//            if (addrList.length !== 1) {
-//              throw new Error("constructor must create a single account");
-//            }
-//          }).
-          get(0).
-          then(Address).
-          then(function(addr) {
-            contract.address = addr;
-          }).
-          thenReturn(contract).
-          then(attach).
-          tagExcepts("contract handler");
-      },
-      enumerable: true
-    })
-    return txHandlers;
-  }
-
-  result = this.send(privkey).then(setContractHandler.bind(this._solObj));
+  Object.defineProperty(txHandlers, "contract", {
+    get: function() {
+      return Promise.resolve(txResult).
+        get("contractsCreated").
+        get(0).
+        then(Address).
+        then(function(addr) {
+          contract.address = addr;
+        }).
+        thenReturn(contract).
+        then(attach).
+        tagExcepts("contract handler");
+    },
+    enumerable: true
+  })
   // Use like solObj.construct().callFrom(privkey) to get a dictionary of
   // handlers: {txHash:, txResult, contract}
   // Resolving .contract will construct the attached Solidity object (previous
   // behavior was to construct this in one step)
-  return handlers.enable ? result : result.get("contract");
+  return handlers.enable ? txHandlers : txHandlers.contract;
+}
+
+function sendSolTXList(solTXList, privkey) {
+  return Transaction.sendList(solTXList, privkey).
+    map(function(handlers, i) {
+      return solTXList[i].setHandler(handlers);
+    });
 }
 
 function attach(solObj) {

@@ -593,6 +593,12 @@ transaction into two parts:
       transaction and returns a Promise resolving to the transaction
       handlers for `routes.submitTransaction`.
 
+Additionally, this function has a member function `sendList`, taking a list of
+Transaction objects and a private key, and sends them as a batch with
+consecutive nonces using the `submitTransactionList` route.  The result is a
+promise for a list of transaction handler objects (if handlers are enabled) or
+transaction results (if not).
+
 #### `Units`
 
 Provides some simple conversions between denominations of ether
@@ -867,7 +873,7 @@ Solidity.prototype = {
   detach: <for storing as a JSON string>
 }
 ```
-There is also a single global method, 
+There is also a global method, 
 ```
 Solidity.attach(<detached JSON string>)
 ```
@@ -881,6 +887,14 @@ then(function(solObj) {
 This method is useful for "saving and reloading" a Solidity object
 without having call the routes.  Note that `Solidity.attach()` returns
 a *synchronous* result, not a promise.
+
+Additionally, there is another global method `sendList`, which takes a list of
+Solidity object transactions and a private key, and batches them using
+`Transaction.sendList`.  A Solidity object transaction is the result either of
+calling `.construct()` on a Solidity object, or calling a state function from an
+already constructed Solidity object.  The result is a Promise for a list of
+handler objects, each one appropriate to the type of transaction that was in the
+corresponding entry.
 
 #### Contract construction
 
