@@ -146,6 +146,14 @@ function makeSolidity(xabi, bin, binr, contract) {
             typeDef.names = Enum(typeDef.names, typeName);
         }
     }
+    // This loop has to be after the one for enums because setTypedefs copies
+    // the result of the previous loop.
+    for (typeName in typesDef) {
+        var typeDef = typesDef[typeName];
+        if (typeDef.type === "Struct") {
+            util.setTypedefs(typesDef, typeDef.fields);
+        }
+    }
     util.setTypedefs(typesDef, xabi.vars);
 
     return assignType(

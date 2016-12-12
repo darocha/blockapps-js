@@ -157,25 +157,41 @@ function objectSize(varDef, typeDefs) {
 }
 
 function setTypedefs(typesDef, varsDef) {
-    for (var varName in varsDef) {
-        var varDef = varsDef[varName];
-        if ("typedef" in varDef) {
-            var typeName = varDef.typedef;
-            if (typesDef && typeName in typesDef) {
-                var typeDef = typesDef[typeName];
-                varDef.type = typeDef.type;
-                varDef.bytes = typeDef.bytes;
-                if (varDef.type === "Enum") {
-                    varDef.names = typeDef.names;
-                }
-            }
-            else {
-                varDef.type = "Contract";
-                varDef.bytes = 20;
-            }
+  function maybeSetTypedef(varDef) {
+    if ("typedef" in varDef) {
+      var typeName = varDef.typedef;
+      if (typesDef && typeName in typesDef) {
+        var typeDef = typesDef[typeName];
+        varDef.type = typeDef.type;
+        varDef.bytes = typeDef.bytes;
+        if (varDef.type === "Enum") {
+          varDef.names = typeDef.names;
         }
+      }
+      else {
+        varDef.type = "Contract";
+        varDef.bytes = 20;
+      }
     }
- }
+  }
+
+  function recursiveSetTypedefs(varDef) {
+    if (varDef.type === "Array") {
+      recursiveSetTypedefs(varDef.entry) 
+    }
+    else if (varDef.type === "Mapping") {
+      recursiveSetTypedefs(varDef.key);
+      recursiveSetTypedefs(varDef.value);
+    }
+    else {
+      maybeSetTypedef(varDef);
+    }
+  }
+
+  for (var varName in varsDef) {
+    recursiveSetTypedefs(varsDef[varName]);
+  }
+}
 
 function entriesToList(entries) {
     var result = [];
