@@ -143,7 +143,7 @@ function sendTXList(txList, privKeyFrom) {
   return Account(addressFrom).nonce.
     then(function(nonce) { 
       return txList.map(function(tx, i) { return prepareTX(tx, nonce.plus(i)); });
-    })
+    }).
     then(submitTransactionList).
     tagExcepts("sendList");
 }
