@@ -2,12 +2,13 @@
 var Promise = require("bluebird");
 var lib = require("..");
 
-var argv = require('minimist')(process.argv.slice(2), 
-  { default: 
+var argv = require('minimist')(process.argv.slice(2),
+  { default:
     { size: 100
     , gapMS: 3000
     , blocURL: "http://localhost:8000"
-    , strato: "https://strato-scale3.blockapps.net/strato-api"
+    , strato: "http://52.90.83.161/strato-api/"
+    , profile: "ethereum-frontier"
     }
   }
 );
@@ -18,7 +19,7 @@ var gapMS = argv.gapMS;
 
 lib.handlers.enable = true;
 
-lib.setProfile("ethereum-frontier", argv.strato);
+lib.setProfile(argv.profile, argv.strato);
 
 var privkey = lib.ethbase.Crypto.PrivateKey.random();
 var faucet = lib.routes.faucet(privkey.toAddress());
@@ -58,7 +59,7 @@ var compileContract = lib.Solidity(`
 contract C{
   string[] names;
   mapping (string => int) values;
-  
+
   function C() {
     addName("Alice");
     addName("Bob");
@@ -73,7 +74,7 @@ contract C{
   function spin() {
     busyWork("Alice");
     busyWork("Bob");
-    busyWork("Carol"); 
+    busyWork("Carol");
   }
 
   function busyWork(string name) {

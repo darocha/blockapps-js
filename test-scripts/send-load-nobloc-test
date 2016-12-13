@@ -3,12 +3,14 @@ var Promise = require("bluebird");
 var lib = require("..");
 lib.handlers.enable = true;
 
-var argv = require('minimist')(process.argv.slice(2), 
-  { default: 
+var argv = require('minimist')(process.argv.slice(2),
+  { default:
     { size: 100
     , gapMS: 3000
+    , duration: 10*60 // seconds
     , blocURL: "http://localhost:8000"
-    , strato: "https://strato-scale3.blockapps.net/strato-api"
+    , strato: "http://localhost/strato-api/"
+    , profile: "ethereum-frontier"
     }
   }
 );
@@ -16,8 +18,9 @@ var argv = require('minimist')(process.argv.slice(2),
 var blocURL = argv.blocURL;
 var size = argv.size;
 var gapMS = argv.gapMS;
+var duration = argv.duration;
 
-lib.setProfile("ethereum-frontier", argv.strato);
+lib.setProfile(argv.profile, argv.strato);
 
 var privkey = lib.ethbase.Crypto.PrivateKey.random();
 var faucet = lib.routes.faucet(privkey.toAddress());
@@ -27,15 +30,16 @@ var currentNonce = 0;
 var startTime;
 var batchesDispatched = 0;
 
-var timesObj = { arr: [] };
-process.on('SIGQUIT', function() {
+
+var statFunction = function () {
   var sigTimeHR = process.hrtime(startTime);
   var sigTime = sigTimeHR[0] + sigTimeHR[1]/1e9;
   var times = timesObj.arr;
   timesObj.arr = [];
 
-  process.stdout.write("\n\n");
-
+  process.stdout.write("----------------------\n");
+  process.stdout.write("batch zie " + argv.size + " gapMS " + argv.gapMS + " duration " + argv.duration + "\n");
+  process.stdout.write("----------------------\n");
   process.stdout.write("Transmission time stats:");
   doStats(times, "s");
 
@@ -51,7 +55,13 @@ process.on('SIGQUIT', function() {
   process.stdout.write("Transactions executed per second: " + txNum/sigTime + "\n");
   process.stdout.write("Time so far: " + sigTime + "\n");
 
-});
+  process.stdout.write("----------------------\n");
+
+  process.exit(0);
+};
+
+// var timesObj = { arr: [] };
+process.on('SIGQUIT', statFunction);
 
 // If I remove this, I fet handler issues
 var compileContract = lib.Solidity(`
@@ -62,6 +72,11 @@ var createContract = faucet.
   thenReturn(compileContract).
   call("callFrom", privkey).
   get("contract");
+
+var timesObj = { arr: [] };
+
+
+setInterval(statFunction, duration * 1000);
 
 createContract.tap(function() {
   startTime = process.hrtime();
@@ -100,12 +115,13 @@ function timeBatch(contract) {
       var txList = [];
       for (i = 0; i < size; ++i) {
         var tx = lib.ethbase.Transaction({nonce: totalDispatchedTX + 1 + i});
+        tx.hash
         tx.from = privkey.toAddress();
         tx.sign(privkey);
         txList.push(tx);
       }
 
-      process.stdout.write("# Sending " + size + " transactions\n");
+      process.stdout.write("# Sending " + size + " transactions" + " - gap " + gapMS + "\n");
 
       var time0 = process.hrtime();
       return lib.routes.submitTransactionList(txList).

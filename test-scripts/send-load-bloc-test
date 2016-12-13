@@ -2,11 +2,14 @@
 var Promise = require("bluebird");
 var request = Promise.promisify(require("request"), {multiArgs: true});
 
-var argv = require('minimist')(process.argv.slice(2), {default: 
+var argv = require('minimist')(process.argv.slice(2),
+{default:
   { size: 100
   , gapMS: 3000
-  , blocURL: "http://localhost:8001"}
-  , strato: "http://localhost:3000"});
+  , blocURL: "http://localhost:8001"
+  }
+  , strato: "http://localhost:3000"
+});
 
 var blocURL = argv.blocURL;
 var size = argv.size;
@@ -59,7 +62,7 @@ function newUsers() {
   function createUser(userName) {
     return blocRoute("/users/" + userName, { faucet: "1", password: "x" })
   }
-} 
+}
 
 function timeBatch(alexAddr, calls) {
   process.stdout.write("# Sending " + size + " transactions\n");
@@ -80,7 +83,7 @@ function timeBatch(alexAddr, calls) {
 function sendToUsers(users) {
   var txs = Array(size).fill("deadbeef").map(a => {return {toAddress: a, value: 1}})
   return blocRoute(
-      "/users/Alex/" + users[0] + "/sendList", 
+      "/users/Alex/" + users[0] + "/sendList",
       { password: "x", txs: txs }
     ).
     then(function(contractAddr) {
