@@ -591,7 +591,9 @@ transaction into two parts:
       if `to` is passed as a parameter to `ethbase.Transaction`, and
       overrides it if present.  Calling this function sends the
       transaction and returns a Promise resolving to the transaction
-      handlers for `routes.submitTransaction`.
+      handlers for `routes.submitTransaction`, with the additional handler
+      "senderBalance", a promise resolving to the post-transaction balance of
+      the sender.
 
 Additionally, this function has a member function `sendList`, taking a list of
 Transaction objects and a private key, and sends them as a batch with

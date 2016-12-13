@@ -4,12 +4,14 @@ var sha3 = Crypto.keccak256;
 var routes = require("./Routes.js");
 var submitTransaction = routes.submitTransaction;
 var submitTransactionList = routes.submitTransactionList;
+var getTX = routes.transaction;
 var Account = require("./Account.js");
 var Address = require("./Address.js");
 var Int = require("./Int.js");
 var errors = require("./errors.js");
 var Promise = require("bluebird");
-var enableHandlers = require("./handlers.js");
+var handlers = require("./handlers.js");
+var pollPromise = require("./routes/pollPromise.js");
 
 module.exports = Transaction;
 
@@ -129,6 +131,7 @@ function sendTX(privKeyFrom, addressTo) {
     return setNonce().
       call("sign", privKeyFrom).
       then(submitTransaction).
+      then(setSenderBalanceHandler).
       tagExcepts("send");
 }
 
@@ -145,7 +148,27 @@ function sendTXList(txList, privKeyFrom) {
       return txList.map(function(tx, i) { return prepareTX(tx, nonce.plus(i)); });
     }).
     then(submitTransactionList).
+    map(setSenderBalanceHandler).
     tagExcepts("sendList");
+}
+
+function setSenderBalanceHandler(txHandlers) {
+  if (handlers.enable) {
+    Object.defineProperty(txHandlers, "senderBalance", {
+      get: function() {
+        return txHandlers.txHash.
+          then(function(theHash) {
+            return pollPromise(getTX.bind(null, {"hash": theHash}));
+          }).
+          get(0).
+          get("from").
+          then(Account).
+          get("balance");
+      },
+      enumerable: true
+    })
+  }
+  return txHandlers;
 }
 
 function txToJSON() {
