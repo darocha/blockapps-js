@@ -133,13 +133,18 @@ function transactionResult(txHash) {
                     "The transaction with this hash has not yet been executed."
                 );
             }
-            return txList[0];
+            return txList[0]; // FIXME, this is not a valid assumption right now.
         }).
         then(function(txResult){
+            console.log("Parsing transactionResult: " + JSON.stringify(txResult))
             if (txResult.transactionHash !== txHash) {
                 throw new Error(
                     "could not retrieve transactionResult for hash " + txHash
                 );
+            }
+            if (txResult.trace == "rejected") {
+                console.log("Transaction was rejected: " + txResult)
+                throw new Error("Transaction was rejected: " + txResult)
             }
             if (txResult.message !== "Success!") {
                 var msg = "Transaction failed with transaction result:\n"
