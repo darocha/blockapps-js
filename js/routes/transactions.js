@@ -125,6 +125,7 @@ function transactionResult(txHash) {
     catch(e) {
         errors.pushTag("transactionResult")(e);
     }
+    console.log("Looking up " + txHash);
     return HTTPQuery("/transactionResult/" + txHash, {"get":{}}).
         then(function(txList) {
             if (txList.length === 0) {
