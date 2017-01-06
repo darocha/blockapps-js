@@ -150,7 +150,7 @@ function transactionResult(txHash) {
             if (txResult.message !== "Success!") {
                 var msg = "Transaction failed with transaction result:\n"
                     + JSON.stringify(txResult, undefined, "  ") + "\n";
-                return transaction({hash: txHash}).
+                return transaction({hash: txHash, rejected: true}).
                     then(function(tx) {
                         throw new Error(msg + "\nTransaction was:\n" +
                                         JSON.stringify(tx, undefined, "  "))
