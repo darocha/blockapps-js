@@ -158,7 +158,7 @@ function setSenderBalanceHandler(txHandlers) {
       get: function() {
         return txHandlers.txHash.
           then(function(theHash) {
-            return pollPromise(getTX.bind(null, {"hash": theHash}));
+            return pollPromise(getTX.bind(null, {"hash": theHash,"rejected" : true}));
           }).
           get(0).
           get("from").
