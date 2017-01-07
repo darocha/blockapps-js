@@ -144,8 +144,8 @@ function transactionResult(txHash) {
                 );
             }
             if (txResult.trace == "rejected") {
-                console.log("Transaction was rejected: " + txResult)
-                throw new Error("Transaction was rejected: " + txResult)
+                console.log("Transaction was rejected: " + JSON.stringify(txResult))
+                throw new Error("Transaction was rejected: " + JSON.stringify(txResult))
             }
             if (txResult.message !== "Success!") {
                 var msg = "Transaction failed with transaction result:\n"
