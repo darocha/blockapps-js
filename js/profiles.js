@@ -34,7 +34,7 @@ var profiles = {
     "ethereum-frontier":
     {
         "pollEveryMS" : 1000,
-        "pollTimeoutMS" : 60000,
+        "pollTimeoutMS" : 90000,
         "gasPrice" : ethValue(50).in("gwei"),
         "gasLimit" : 1e6
     }
