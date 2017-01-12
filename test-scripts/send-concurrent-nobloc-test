@@ -13,6 +13,7 @@ var argv = require('minimist')(process.argv.slice(2),
     , nconc: 2
     , toEnabled: 0 
     , gapMS: 3000
+    , txOffset: 0
     , strato: "http://localhost/strato-api"
     }
   }
@@ -22,13 +23,18 @@ var size = argv.size;
 var gapMS = argv.gapMS;
 var nconc = argv.nconc;
 var toEnabled = argv.toEnabled;
+var txOffset = argv.txOffset;
 
 lib.setProfile("ethereum-frontier", argv.strato);
 
 var privkey = lib.ethbase.Crypto.PrivateKey.random();
+var address = privkey.toAddress();
 var account = lib.ethbase.Account(privkey.toAddress());
 
-var faucet = lib.routes.faucet(privkey.toAddress())
+console.log("Address is: " + address);
+
+
+var faucet = lib.routes.faucet(address)
   .then(a => {
     console.log("Faucet called for " + a.address); return a.address})
   .then(a =>{
@@ -50,6 +56,17 @@ var faucet = lib.routes.faucet(privkey.toAddress())
      })
   });
 
+
+// // If I remove this, I fet handler issues
+// var compileContract = lib.Solidity(`
+// contract C{}
+// `).call("construct");
+// 
+// var createContract = faucet.
+//   thenReturn(compileContract).
+//   call("callFrom", privkey).
+//   get("contract");
+
 var currentNonce = 0;
 var startTime;
 var batchesDispatched = 0;
@@ -62,16 +79,22 @@ var sendBatch = function(nonce, concNum){
 
   var txList = [];
   for (i = 0; i < size; ++i) {
-    var tx = lib.ethbase.Transaction({nonce: nonce + 1 + i});
-    tx.value = "1";
-    tx.from = privkey.toAddress();
+    var tx = lib.ethbase.Transaction({nonce: nonce + i + txOffset});
+    tx.value = "0";
+    //tx.from = address;
     if(toEnabled==1)
-      tx.to   = "deadbeef";
+      tx.to   = "e1fd0d4a52b75a694de8b55528ad48e2e2cf7859";
+    if(toEnabled==2)
+      tx.to   = address;
     tx.sign(privkey);
     txList.push(tx);
+    //tx.send(privkey, tx.to).then(r => {
+    //  console.log("Result: " + JSON.stringify(r))
+    //})
     process.stdout.write(c("tx: " + JSON.stringify(tx) + "\n\n"));
   }
 
+  //return lib.ethbase.Transaction.sendList(txList, privkey)
   return lib.routes.submitTransactionList(txList);
 }
 
