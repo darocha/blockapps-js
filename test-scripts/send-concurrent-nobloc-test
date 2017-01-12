@@ -10,7 +10,7 @@ console.log("transaction resolver")
 var argv = require('minimist')(process.argv.slice(2), 
   { default: 
     { size: 100
-    , nconc: 2
+    , nconc: 1
     , toEnabled: 0 
     , gapMS: 3000
     , txOffset: 0
@@ -35,8 +35,12 @@ console.log("Address is: " + address);
 
 
 var faucet = lib.routes.faucet(address)
-  .then(a => {
-    console.log("Faucet called for " + a.address); return a.address})
+  .then(ret => {
+    console.log("Faucet called for " + ret.address); 
+    if(ret.address !== address.toString())
+      throw Error("hit the address serialization bug")
+    return ret.address;
+  })
   .then(a =>{
      account.balance.then(b => {
        console.log("balance is: " + b.toString());
@@ -52,12 +56,17 @@ var faucet = lib.routes.faucet(address)
     
          return Promise.all(toSend);
        })
+       .then(r => {
+         console.log(r[0].address);
+         var x = JSON.stringify(r)
+         console.log("Done..")
+       })
        .then(console.log("Done!"))
      })
   });
 
 
-// // If I remove this, I fet handler issues
+// // If I remove this, I get handler issues
 // var compileContract = lib.Solidity(`
 // contract C{}
 // `).call("construct");
@@ -73,7 +82,7 @@ var batchesDispatched = 0;
 
 var sendBatch = function(nonce, concNum){
 
-  var c = (concNum == 0) ? chalk.green : (a=>chalk.blue('\t\t\t\t\t\t\t'+a));
+  var c = (concNum == 0) ? chalk.green : (a => chalk.blue('\t\t\t\t\t\t\t'+a));
 
   process.stdout.write(c("# Sending " + size + " transactions\n"));
 
@@ -81,9 +90,8 @@ var sendBatch = function(nonce, concNum){
   for (i = 0; i < size; ++i) {
     var tx = lib.ethbase.Transaction({nonce: nonce + i + txOffset});
     tx.value = "0";
-    //tx.from = address;
     if(toEnabled==1)
-      tx.to   = "e1fd0d4a52b75a694de8b55528ad48e2e2cf7859";
+      tx.to   = lib.ethbase.Crypto.PrivateKey.random().toAddress();
     if(toEnabled==2)
       tx.to   = address;
     tx.sign(privkey);
