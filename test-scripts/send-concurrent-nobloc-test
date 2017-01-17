@@ -1,19 +1,27 @@
 #!/usr/bin/env node
+
 var Promise = require("bluebird");
 var lib = require("..");
-lib.handlers.enable = true;
-
 var chalk = require('chalk')
+var chai = require('chai')
+var chap = require('chai-as-promised')
+var mocha = require('mocha')
 
+chai.use(chap)
+chai.should()
+
+lib.handlers.enable = true;
 console.log("transaction resolver")
 
 var argv = require('minimist')(process.argv.slice(2), 
   { default: 
-    { size: 100
+    { size: 1
     , nconc: 1
     , toEnabled: 0 
     , gapMS: 3000
     , txOffset: 0
+    , throwError: 0
+    , standAlone: 0
     , strato: "http://localhost/strato-api"
     }
   }
@@ -24,6 +32,7 @@ var gapMS = argv.gapMS;
 var nconc = argv.nconc;
 var toEnabled = argv.toEnabled;
 var txOffset = argv.txOffset;
+var throwError = argv.throwError;
 
 lib.setProfile("ethereum-frontier", argv.strato);
 
@@ -33,12 +42,69 @@ var account = lib.ethbase.Account(privkey.toAddress());
 
 console.log("Address is: " + address);
 
+if(argv.standAlone==0){
+describe('different transaction rejection tests', _ => {
+     
+     // throwError=1 : should throw, occasionally
+//   for(var i = 0; i < 50; i++){
+//     it("shouldn't hit address bug " + i, function(done) {
+//       var p = lib.ethbase.Crypto.PrivateKey.random();
+//       return lib.routes.faucet(p.toAddress()).then(r => {
+//         var retAddress = r.address;
+//         console.log("address: " + retAddress)
+//         done();
+//         return new Promise(p.toAddress().toString() == retAddress);
+//       }).should.equal.true;
+//     })
+//   }
 
-var faucet = lib.routes.faucet(address)
+  it("should run the faucet", function() {
+    return lib.routes.faucet(address).tap(r => {
+      var retAddress = r;
+    }).should.be.fulfilled;
+  })
+
+// failure modes: 
+// toEnabled=1, txOffset=1 : we don't get response because TX not put in TX result
+// toEnabled=0, txOffset=1 : crash the VM, occasionally
+// toEnabled=1, txOffset=0, nconc=2, size=2 : we should get two rejected (out of four)
+// toEnabled=1, txOffset=1, nconc=2, size=2 : we should get one rejected (out of four)
+
+  // toEnabled=1, txOffset=-1 : tx rejected (we shouldn't see timeout)
+  it("should reject nonce to small txs", function () {
+    return account.nonce.then(n => {
+         var toSend = [];
+         for(var i = 0; i < 1; i++){
+           toSend.push(sendBatch(n, i, 1, -1, 1))
+         }
+         return Promise.all(toSend);
+    }).should.eventually.be.rejected;
+  })
+
+  // toEnabled=1, txOffset=0, nconc=2, size=1 : we should get one rejected (out of two)
+  it("should reject one and accept one tx", function () {
+     return account.nonce.then(n => {
+         var toSend = [];
+         for(var i = 0; i < 1; i++){
+           toSend.push(sendBatch(n, i, 2, 0, 3))
+         }
+         return Promise.all(toSend);
+     }).tap(r => {
+     //  console.log(JSON.stringify(r))
+     }).should.eventually.be.fulfilled;
+  })
+
+})
+}
+
+var faucet = lib.routes.faucet(lib.ethbase.Address(address))
   .then(ret => {
     console.log("Faucet called for " + ret.address); 
     if(ret.address !== address.toString())
-      throw Error("hit the address serialization bug")
+      if(throwError==1)
+        throw Error("hit the address serialization bug")
+      else
+        console.log("hit the address serialization bug")
     return ret.address;
   })
   .then(a =>{
@@ -50,14 +116,14 @@ var faucet = lib.routes.faucet(address)
          console.log("current nonce: " + n);
 
          var toSend = [];
-         for(var i = 0; i < nconc; i++){a
-           toSend.push(sendBatch(n, i))
+         for(var i = 0; i < nconc; i++){
+           toSend.push(sendBatch(n, i, toEnabled, txOffset, size))
          }
     
          return Promise.all(toSend);
        })
        .then(r => {
-         console.log(r[0].address);
+         //console.log(r[0].address);
          var x = JSON.stringify(r)
          console.log("Done..")
        })
@@ -65,22 +131,11 @@ var faucet = lib.routes.faucet(address)
      })
   });
 
-
-// // If I remove this, I get handler issues
-// var compileContract = lib.Solidity(`
-// contract C{}
-// `).call("construct");
-// 
-// var createContract = faucet.
-//   thenReturn(compileContract).
-//   call("callFrom", privkey).
-//   get("contract");
-
 var currentNonce = 0;
 var startTime;
 var batchesDispatched = 0;
 
-var sendBatch = function(nonce, concNum){
+var sendBatch = function(nonce, concNum, toEnabled, txOffset, size){
 
   var c = (concNum == 0) ? chalk.green : (a => chalk.blue('\t\t\t\t\t\t\t'+a));
 
@@ -94,9 +149,12 @@ var sendBatch = function(nonce, concNum){
       tx.to   = lib.ethbase.Crypto.PrivateKey.random().toAddress();
     if(toEnabled==2)
       tx.to   = address;
+    console.log("tx.to is: " + tx.to)
+    console.log("that's " + tx.to.length + " bytes")
+    console.log("that's " + tx.to.toString().length + " chars")
     tx.sign(privkey);
     txList.push(tx);
-    //tx.send(privkey, tx.to).then(r => {
+    //tx.send(privkey).then(r => {
     //  console.log("Result: " + JSON.stringify(r))
     //})
     process.stdout.write(c("tx: " + JSON.stringify(tx) + "\n\n"));
