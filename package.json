@@ -55,9 +55,12 @@
     "browserify": "^11.0.1",
     "chai": "",
     "chai-as-promised": "",
+    "lodash": "^4.17.4",
     "minify": "",
     "minimist": "^1.2.0",
-    "mocha": ""
+    "mocha": "",
+    "request": "^2.79.0",
+    "request-promise": "^4.1.1"
   },
   "scripts": {
     "build": "npm run browserify && npm run minify",
