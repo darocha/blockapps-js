@@ -7,7 +7,7 @@ var chai = require('chai')
 var chap = require('chai-as-promised')
 var mocha = require('mocha')
 var rp = require('request-promise');
-var _ = require('lodash')
+var _ = require('lodash/fp')
 
 chai.use(chap)
 chai.should()
@@ -58,16 +58,16 @@ var mkTxs = function(privkey, n, nonces, toAddress, value){
     var v       = value == 1     ? (""+j) : "0"
     nn = n + i
     txs.push(lib.ethbase.Transaction({nonce: nn, to: address, value: v}))
-    console.log("to: " + address + "; nonce: " + nn + "; value: " + v) 
+    //console.log("to: " + address + "; nonce: " + nn + "; value: " + v) 
   })
   return txs.map(t => t.sign(privkey))
 }
 
 var mkTest = function(msg, privkey, nonces, toAddress, value, nres){
-  it(msg + ':: should transmit ' + nonces + ' txs for address ' + privkey.toAddress() + ' dropping ' + nres + ' transaction(s)', function() {
+  it(msg + ':: should transmit ' + nonces + ' txs for address ' + privkey.toAddress() + ' resulting in ' + JSON.stringify(nres), function() {
       this.timeout(2000*nonces.length);  
       return Promise.all(lib.ethbase.Account(privkey.toAddress()).nonce.then(n => {
-        console.log("nonce for " + privkey.toAddress() + " is " + n);
+        //console.log("nonce for " + privkey.toAddress() + " is " + n);
         return lib.routes.submitTransactionList(mkTxs(privkey, n, nonces, toAddress, value));
       })
       .tap(r => {
@@ -94,13 +94,8 @@ var mkTest = function(msg, privkey, nonces, toAddress, value, nres){
               })
             }))
       }))
-      .then(x => {
-        var res = _.filter(x, y => {
-          console.log(y.tx + " : " + y.message)
-          return y.message != "Success!";
-        })
-        return  _.size(res);
-      }).should.eventually.be.equal(nres);
+      .then(_.countBy('message'))
+      .should.eventually.deep.equal(nres);
      
   })
 }
@@ -130,123 +125,27 @@ if(argv.standAlone==0){
   // failure modes: 
   // toEnabled=1, txOffset=1 : we don't get response because TX not put in TX result
   // toEnabled=1, txOffset=1, nconc=2, size=2 : we should get one rejected (out of four)
-  
-    // toEnabled=1, txOffset=-1 : tx rejected (we shouldn't see timeout)
-  //   it("should reject nonce to small txs", function () {
-  //     return account.nonce.then(n => {
-  //          var toSend = [];
-  //          toSend.push(sendBatch(n, 0, 2, -1, 1))
-  //          return Promise.all(toSend);
-  //     }).should.eventually.be.rejected;
-  //   })
-
+ 
     var p1 = lib.ethbase.Crypto.PrivateKey.random();
     mkFaucet(p1)
-    mkTest("should do all transactions" , p1, [0,1,2,3,4,5,6], 1, 1, 0)
+    mkTest("should do all transactions" , p1, [0,1,2,3,4,5,6], 1, 1, {"Success!":7})
     
     var p2 = lib.ethbase.Crypto.PrivateKey.random();
     mkFaucet(p2)
-    mkTest("should reject latter txs with nonces too low - this triggers (#138009465)", p2, [0,1,2,3,4,5,6,7,8,9,9,9,9,9], 1, 1, 4)
-    
+    mkTest("should reject latter txs with nonces too low - this triggers (#138009465)", p2, [0,1,2,3,4,5,6,7,8,9,9,9,9,9], 1, 1,{"Success!": 10, "Rejected from mempool at Validation due to low tx nonce": 4}) 
+   
+    var p3 = lib.ethbase.Crypto.PrivateKey.random();
+    mkFaucet(p3)
+    mkTest("should not timeout on transactions with nonce in the future and missing .to (#137405949)", p3, [1,2,3,4], 0, 1, {"Success!": 0, "Rejected from mempool at Validation due to low tx nonce": 4})
 
-    // toEnabled=1, txOffset=0, nconc=2, size=2 
-    // it("should reject two and accept two tx", function () {
-    //    return account.nonce.then(n => {
-    //      var p1 = sendBatch(n, 0, 2, 0, 2);
-    //      var p2 = sendBatch(n, 1, 2, 0, 2);
-    //     
-    //      p1.then(insp)
-    //      p2.then(insp)
+    var p4 = lib.ethbase.Crypto.PrivateKey.random();
+    mkFaucet(p4)
+    mkTest("should not timeout on transactions with nonce in the future" , p4, [1,2,3,4], 1, 1, {"Success!": 0, "Rejected from mempool at Validation due to low tx nonce": 4})
 
-    //      //Promise.map([p1,p2], insp) 
-    //      return Promise.reduce([p1,p2], function(p){
-    //        return 1 
-    //      }, 0)
-    //    }).tap(r => {
-    //       console.log(JSON.stringify("total is " + r))
-    //    }).should.eventually.equal(2);
-    // })
-  
-    // toEnabled=1, txOffset={0,1], nconc=2, size=3 
-    // it("should reject two and accept four tx", function () {
-    //    return account.nonce.then(n => {
-    //        var toSend = [];
-    //        for(var i = 0; i < 2; i++){
-    //          toSend.push(sendBatch(n, i, 2, i, 2))
-    //        }
-    //        toSend = flatten(toSend);
-    //        console.log("4:2 : " + JSON.stringify(toSend))
-    //        return Promise.reduce(toSend, function(total, p){
-    //          return 1+total;
-    //        }, 0);
-    //    }).tap(r => {
-    //       console.log(JSON.stringify("total is " + r))
-    //    }).should.eventually.equal(4);
-    // })
-  
-    // // toEnabled=1, txOffset=0, nconc=2, size=2 
-    // it("should reject two and accept two tx", function () {
-    //    return account.nonce.then(n => {
-    //        var toSend = [];
-    //        for(var i = 0; i < 2; i++){
-    //          toSend.push(sendBatch(n, i, 2, 0, 2))
-    //        }
-    //        toSend = flatten(toSend);
-    //        return Promise.reduce(toSend, function(total, p){
-    //          return 1+total;
-    //        }, 0);
-    //    }).tap(r => {
-    //       console.log(JSON.stringify("total is " + r))
-    //    }).should.eventually.equal(2);
-    // })
+    var p5 = lib.ethbase.Crypto.PrivateKey.random();
+    mkFaucet(p5)
+    mkTest("should not timeout on transactions with nonce in the future" , p5, [1,2,1,2], 1, 1, {"Success!": 2, "Rejected from mempool at Validation due to low tx nonce": 2})
 
-
-    // // toEnabled=1, txOffset=0, nconc=2, size=2 
-    // it("should reject two and accept two tx", function () {
-    //    return account.nonce.then(n => {
-    //        var toSend = [];
-    //        for(var i = 0; i < 2; i++){
-    //          toSend.push(sendBatch(n, i, 2, 0, 2))
-    //        }
-    //        toSend = flatten(toSend);
-    //        return Promise.reduce(toSend, function(total, p){
-    //          return 1+total;
-    //        }, 0);
-    //    }).tap(r => {
-    //       console.log(JSON.stringify("total is " + r))
-    //    }).should.eventually.equal(2);
-    // })
-
-
-    // // toEnabled=1, txOffset=0, nconc=2, size=1 
-    // it("should reject one and accept one tx", function () {
-    //    return account.nonce.then(n => {
-    //        var toSend = [];
-    //        for(var i = 0; i < 2; i++){
-    //          toSend.push(sendBatch(n, i, 2, 0, 1))
-    //        }
-    //        toSend = flatten(toSend);
-    //        return Promise.reduce(toSend, function(total, p){
-    //          return 1+total;
-    //        }, 0);
-    //    }).tap(r => {
-    //       console.log(JSON.stringify("total is " + r))
-    //    }).should.eventually.equal(1);
-    // })
-
-
-    // toEnabled=0, txOffset=1 : crash the VM, occasionally
-    // it("shouldn't stop with the to=undefined bug", function (){
-    //    return account.nonce.then(n => {
-    //        var toSend = [];
-    //        for(var i = 0; i < 2; i++){
-    //          toSend.push(sendBatch(n, i, 0, 1, 2))
-    //        }
-    //        return Promise.all(toSend);
-    //    }).tap(r => {
-    //       console.log(JSON.stringify(r))
-    //    }).should.eventually.be.fulfilled;
-    // })
   })
 } else {
 
