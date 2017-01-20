@@ -84,10 +84,12 @@ var mkTest = function(msg, privkey, nonces, toAddress, value, nres){
             .then(hash => {
               return rp({uri: argv.strato + '/eth/v1.2/transactionResult/' + hash, json: true})
                 .then(json => {
-                  var message = "unresolved";
+                  var message = "Unresolved!";
                   if(json.length > 0){
                     message = json[0].message;
-                    // console.log("transactionResult for " + hash + " is: " + message)
+                    if(message.indexOf("Rejected") == 0)
+                      message = "Rejected!"
+                   // console.log("transactionResult for " + hash + " is: " + message)
                   }
                   return {tx: hash, message: message};
                 })
@@ -132,19 +134,26 @@ if(argv.standAlone==0){
     
     var p2 = lib.ethbase.Crypto.PrivateKey.random();
     mkFaucet(p2)
-    mkTest("should reject latter txs with nonces too low - this triggers (#138009465)", p2, [0,1,2,3,4,5,6,7,8,9,9,9,9,9], 1, 1,{"Success!": 10, "Rejected from mempool at Validation due to low tx nonce": 4}) 
+    mkTest("should reject latter txs with nonces too low - this triggers (#138009465)", p2, [0,1,2,3,4,5,6,7,8,9,9,9,9,9], 1, 1,{"Success!": 10, "Rejected!": 4}) 
    
     var p3 = lib.ethbase.Crypto.PrivateKey.random();
     mkFaucet(p3)
-    mkTest("should not timeout on transactions with nonce in the future and missing .to (#137405949)", p3, [1,2,3,4], 0, 1, {"Success!": 0, "Rejected from mempool at Validation due to low tx nonce": 4})
+    mkTest("should timeout on transactions with nonce in the future and missing .to (#137405949)", p3, [1,2,3,4], 0, 1, {"Unresolved!": 4})
 
     var p4 = lib.ethbase.Crypto.PrivateKey.random();
     mkFaucet(p4)
-    mkTest("should not timeout on transactions with nonce in the future" , p4, [1,2,3,4], 1, 1, {"Success!": 0, "Rejected from mempool at Validation due to low tx nonce": 4})
+    mkTest("should timeout on transactions with nonce in the future" , p4, [1,2,3,4], 1, 1, {"Unresolved!": 4})
 
     var p5 = lib.ethbase.Crypto.PrivateKey.random();
     mkFaucet(p5)
-    mkTest("should not timeout on transactions with nonce in the future" , p5, [1,2,1,2], 1, 1, {"Success!": 2, "Rejected from mempool at Validation due to low tx nonce": 2})
+    mkTest("should not timeout on some transactions with nonce in the future" , p5, [0,1,2,1,4], 1, 1, {"Success!": 3, "Rejected!": 1, "Unresolved!":1})
+
+    var p6 = lib.ethbase.Crypto.PrivateKey.random();
+    mkFaucet(p6)
+    mkTest("should not timeout on transactions with duplicate nonce" , p6, [0,1,1,2,2], 1, 1, {"Success!": 3, "Rejected!": 2})
+    mkTest("transactions should work, if called after rejections" , p6, [0,1,2], 1, 1, {"Success!": 3})
+
+
 
   })
 } else {
