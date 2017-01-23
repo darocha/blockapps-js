@@ -1,0 +1,36 @@
+#!/usr/bin/env node
+var Promise = require("bluebird");
+var lib = require("..");
+lib.handlers.enable = true;
+
+var chalk = require('chalk')
+
+console.log("address to address")
+
+var argv = require('minimist')(process.argv.slice(2), 
+  { default: 
+    { size: 100
+    , strato: "http://localhost/strato-api"
+    }
+  }
+);
+
+var size = argv.size;
+
+lib.setProfile("ethereum-frontier", argv.strato);
+
+var privkey = lib.ethbase.Crypto.PrivateKey.random();
+var address = privkey.toAddress();
+var account = lib.ethbase.Account(privkey.toAddress());
+
+var faucet = function _faucet(){
+
+  var addr = lib.ethbase.Crypto.PrivateKey.random().toAddress()
+  console.log("Address is:\t\t" + addr)
+  lib.routes.faucet(addr)
+  .then(ret => {
+     console.log("Faucet called for:\t" + ret.address);
+     if(ret.address !== addr.toString())
+        throw Error("hit the address serialization bug")
+   }).then(_faucet)
+}();
