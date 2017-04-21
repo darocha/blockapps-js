@@ -137,7 +137,6 @@ function transactionResult(txHash) {
             return txList[0]; // FIXME, this is not a valid assumption right now.
         }).
         then(function(txResult){
-            console.log("Parsing transactionResult: " + JSON.stringify(txResult))
             if (txResult.transactionHash !== txHash) {
                 throw new Error(
                     "could not retrieve transactionResult for hash " + txHash
