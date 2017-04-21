@@ -28,8 +28,15 @@ var profiles = {
         "pollEveryMS" : 500,
         "pollTimeoutMS" : 10000,
         "gasPrice" : ethValue(1).in("wei"),
-        "gasLimit" : 3141592,
+        "gasLimit" : 31415920,
         "multiTXaddr" : "8a53483de69960d69fdbf98dfcb6af368a8b4abf"
+    },
+    "ethereum":
+    {
+        "pollEveryMS" : 1000,
+        "pollTimeoutMS" : 60000,
+        "gasPrice" : ethValue(50).in("gwei"),
+        "gasLimit" : 1e6
     },
     "ethereum-frontier":
     {
