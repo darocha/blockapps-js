@@ -1,0 +1,121 @@
+#!/usr/bin/env node
+var Promise = require("bluebird");
+var lib = require("..");
+lib.handlers.enable = true;
+
+var argv = require('minimist')(process.argv.slice(2), 
+  { default: 
+    { size: 100
+    , gapMS: 3000
+    , blocURL: "http://localhost:8000"
+    , strato: "http://localhost/strato-api"
+    }
+  }
+);
+
+var blocURL = argv.blocURL;
+var size = argv.size;
+var gapMS = argv.gapMS;
+
+lib.setProfile("ethereum-frontier", argv.strato);
+
+var privkey = lib.ethbase.Crypto.PrivateKey.random();
+var faucet = lib.routes.faucet(privkey.toAddress());
+var account = lib.ethbase.Account(privkey.toAddress());
+
+var currentNonce = 0;
+var startTime;
+var batchesDispatched = 0;
+
+var timesObj = { arr: [] };
+process.on('SIGQUIT', function() {
+  var sigTimeHR = process.hrtime(startTime);
+  var sigTime = sigTimeHR[0] + sigTimeHR[1]/1e9;
+  var times = timesObj.arr;
+  timesObj.arr = [];
+
+  process.stdout.write("\n\n");
+
+  process.stdout.write("Transmission time stats:");
+  doStats(times, "s");
+
+  process.stdout.write("Transmission TPS stats:");
+  doStats(times.map(function(time) { return size/time; }), "tx/s");
+
+  process.stdout.write("Total TPS stats:");
+  doStats(times.map(function(time) { return size/(time + gapMS / 1000); }), "tx/s");
+
+  var txNum = currentNonce - 1; // Contract creation
+  process.stdout.write("Batches dispatched: " + batchesDispatched + "\n");
+  process.stdout.write("Transactions executed: " + txNum + "\n");
+  process.stdout.write("Transactions executed per second: " + txNum/sigTime + "\n");
+  process.stdout.write("Time so far: " + sigTime + "\n");
+
+});
+
+// If I remove this, I fet handler issues
+var compileContract = lib.Solidity(`
+contract C{}
+`).call("construct");
+
+var createContract = faucet.
+  thenReturn(compileContract).
+  call("callFrom", privkey).
+  get("contract");
+
+createContract.tap(function() {
+  startTime = process.hrtime();
+}).then(timeBatch);
+
+function doStats(nums, unit) {
+  process.stdout.write(" (ignoring the first half of the data)\n")
+  nums = nums.slice(nums.length/2); // Ignore ramp-up measurements;
+
+  var mean = 0;
+  nums.forEach(function(num) { mean += num; });
+  mean = mean / nums.length;
+  process.stdout.write("Mean: " + mean + " " + unit + "\n")
+
+  var variance = 0;
+  nums.forEach(function(num) { var diff = num - mean; variance += diff * diff; });
+  variance = variance / (nums.length - 1);
+  var stdev = Math.sqrt(variance);
+  process.stdout.write("Standard deviation: " + stdev + " " + unit + "\n");
+
+  process.stdout.write("\n");
+}
+
+function timeBatch(contract) {
+  var sendBatch = account.nonce.
+    then(function(n) {
+
+      currentNonce = n;
+      var totalDispatchedTX = batchesDispatched * size;
+
+      process.stdout.write("nonce before dispatch: " + n + "\n");
+      process.stdout.write("total dispatched tx before dispatch: " + totalDispatchedTX + "\n");
+
+      batchesDispatched++;
+
+      var txList = [];
+      for (i = 0; i < size; ++i) {
+        var tx = lib.ethbase.Transaction({nonce: totalDispatchedTX + 1 + i});
+        tx.from = privkey.toAddress();
+        tx.sign(privkey);
+        txList.push(tx);
+      }
+
+      process.stdout.write("# Sending " + size + " transactions\n");
+
+      var time0 = process.hrtime();
+      return lib.routes.submitTransactionList(txList).
+        tap(function() {
+          var durationHR = process.hrtime(time0);
+          var duration = durationHR[0] + durationHR[1]/1e9;
+          timesObj.arr.push(duration);
+          process.stdout.write(duration + "\n");
+        });
+    });
+
+  return Promise.delay(gapMS, sendBatch).thenReturn(contract).then(timeBatch);
+}

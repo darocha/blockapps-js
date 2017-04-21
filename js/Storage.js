@@ -30,13 +30,13 @@ function getKey(key) {
         tagExcepts("Storage");
 }
 
-function getRange(start, bytes) {
-    var first = start.over(32); // Rounding down by 32
-    var itemsNum = Math.floor((bytes + 31)/32); // Rounding up by 32
-    var last = first.plus(itemsNum - 1);
-    var starti = start.mod(32).valueOf();
-    var length = last.plus(1).minus(first).times(32).valueOf()
-    return storageQuery({
+function getRange(start, bytes, switchEnds) {
+    var first = start.over(32); // First storage key: Rounding down by 32
+    var itemsNum = Math.floor((bytes + 31)/32); // Total storage keys: Rounding up by 32
+    var last = first.plus(itemsNum - 1); // Last storage key
+    var starti = start.mod(32).valueOf(); // Byte index where requested data starts
+    var length = last.plus(1).minus(first).times(32).valueOf(); // Total number of bytes we fetch
+    var rawStorage = storageQuery({
             "minkey":first.toString(10),
             "maxkey":last.toString(10),
             "address":this.address
@@ -61,9 +61,13 @@ function getRange(start, bytes) {
                 }
             }
             return Buffer(output.join(""),"hex");
-        }).
-        call("slice", length - (starti + bytes), length - starti).
-        tagExcepts("Storage");        
+        });
+      
+      return (
+        switchEnds ?
+        rawStorage.call("slice", starti, starti + bytes) :
+        rawStorage.call("slice", length - (starti + bytes), length - starti)
+      ).tagExcepts("Storage");        
 }
 
 function pushZeros(output, count) {

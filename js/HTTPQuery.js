@@ -72,9 +72,8 @@ function HTTPQuery(queryPath, params) {
             }
             else if (typeof r === "string" && r.startsWith(inval))
             {
-                var s = r.slice(inval.length);
-                var e = JSON.parse(s);
-                throw new Error(e.error);
+                r = r.slice(inval.length);
+                throw new Error(r);
             }
             else if (typeof r === "string" && r.startsWith(inter)) {
                 r = r.slice(inter.length);

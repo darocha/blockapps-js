@@ -13,5 +13,7 @@ module.exports.polling = require("./js/routes/pollPromise.js").defaults;
 module.exports.Solidity = require("./js/Solidity.js");
 module.exports.MultiTX = require("./js/MultiTX.js");
 module.exports.setProfile = require("./js/profiles.js");
+module.exports.handlers = require("./js/handlers.js");
 
-module.exports.setProfile("strato-dev","http://strato-dev3.blockapps.net","1.1");
+
+module.exports.setProfile("strato-dev","http://strato-dev4.blockapps.net","1.2");

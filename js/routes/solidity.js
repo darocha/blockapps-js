@@ -1,25 +1,22 @@
 var HTTPQuery = require("../HTTPQuery.js");
 var Promise = require('bluebird');
-var path = require("path");
 var streamFile = require("./readfile.js");
+var fs = require('fs');
 var errors = require("../errors.js");
 
 function prepPostData (dataObj) {
     var postDataObj = {};
-    
+
     dataObjOpts = dataObj.options;
     for (opt in dataObjOpts) {
         postDataObj[opt] = dataObjOpts[opt];
     }
     delete dataObj.options;
-    
     for (name in dataObj) {
-        postDataNameArr = [];
         dataObjName = dataObj[name];
         for (fname in dataObjName) {
-            postDataNameArr.push(streamFile(fname, dataObjName[fname]));
+          postDataObj[name + ":" + fname] = streamFile(fname, dataObjName[fname]);
         }
-        postDataObj[name] = postDataNameArr;
     }
 
     var result = {}
@@ -36,14 +33,36 @@ function solcCommon(tag, code, dataObj) {
             dataObj.options = {};
         }
         dataObj.options.src = code;
+        if (!("import" in dataObj)) {
+            dataObj.import = {};
+        }
         var route = "/" + tag;
         var postData = prepPostData(dataObj);
     }
     catch(e) {
         errors.pushTag(tag)(e);
     }
-
-    return HTTPQuery(route, postData).tagExcepts(tag);
+    return HTTPQuery(route, postData).
+    then(function(resp){
+      if ("importError" in resp) {
+        if (resp.importError === "missingImport") {
+          dataObj.import[resp["missingImport"]] = undefined;
+          return solcCommon(tag, code, dataObj);
+        }
+        else {
+          var errorString = "Import error in file '" + resp.inFile + "': ";
+          var errorText = {
+            "importCycle" : "Import cycle found",
+            "missingSymbol" : "Symbol '" + resp.missingSymbol + "' imported from file '" + resp.fileName + "' not found"
+          };
+          throw new Error(errorString + errorText[resp.importError]);
+        }
+      }
+      else {
+        resp.dataObj = dataObj;
+        return resp;
+      }
+    }).tagExcepts(tag);
 }
 
 // solc(code :: string, {

@@ -1,8 +1,10 @@
+var Promise = require("bluebird");
 var Int = require("../Int.js");
 var Transaction = require("../Transaction.js");
 var util = require("./util.js");
 var errors = require("../errors.js");
 var Enum = require("./enum.js");
+var handlers = require("../handlers.js");
 
 function solMethod(typesDef, funcDef, name) {
     var vals = funcDef["vals"];
@@ -51,17 +53,24 @@ function solMethod(typesDef, funcDef, name) {
         });
 
         result.txParams = txParams;
-        result.callFrom = callFrom;
+        result.callFrom = function(privkey) {
+          return this.send(privkey).then(this.setHandler)
+        } 
+        var valsDef = {
+          type: "Array",
+          entries: vals,
+          length: Object.keys(vals).length
+        };
         Object.defineProperties(result, {
             "_ret" : {
-                value: {
-                    type: "Array",
-                    entries: vals,
-                    length: Object.keys(vals).length
-                }                
+                value: valsDef
             },
             "_solObj" : {
                 value: solObj
+            },
+            "setHandler" : {
+                value: setReturnValueHandler.bind(null, typesDef, valsDef),
+                writable: true
             }
         });
         return result;
@@ -74,24 +83,41 @@ function txParams(given) {
             if (param in given) {
                 this[param] = "0x" + Int(given[param]).toString(16);
             }
-        }.bind(this))
+        }.bind(this));
+        if ("nonce" in given) {
+          this.nonce = Int(given.nonce);
+        }
     }
     return this;
 }
 
-function callFrom(from) {
-    var tx = this;
-    return tx.send(from).get("response").then(function(r) {
-        var result = decodeReturn(tx._ret, r);
-        switch (result.length) {
-        case 0:
-            return null;
-        case 1:
-            return result[0];
-        default:
-            return result;
-        }
-    });
+function setReturnValueHandler(typesDef, valsDef, maybeTXHandlers) {
+  // If handlers.enable == true, then this.send returned a dictionary of
+  // handlers and we have to fetch the txResult ourselves
+  // If handlers.enable == false, then this.send returned the txResult
+  // directly.
+  var txResult = 
+    handlers.enable ? maybeTXHandlers.txResult : Promise.resolve(maybeTXHandlers);
+
+  Object.defineProperty(maybeTXHandlers, "returnValue", {
+    get: function() {
+      return txResult.
+        get("response").
+        then(function(r) {
+          var result = decodeReturn(typesDef, valsDef, r);
+          switch (result.length) {
+            case 0:
+              return null;
+            case 1:
+              return result[0];
+            default:
+              return result;
+          }
+        });
+    },
+    enumerable: true
+  })
+  return handlers.enable ? maybeTXHandlers : maybeTXHandlers.returnValue;
 }
 
 function funcArgs(selector, argsList, x) {
@@ -180,7 +206,7 @@ function funcArg(varDef, y) {
     }
 }
 
-function decodeReturn(valsDef, x) {
+function decodeReturn(typesDef, valsDef, x) {
     if (valsDef === undefined) {
         return null;
     }
@@ -212,6 +238,9 @@ function decodeReturn(valsDef, x) {
     function go(valDef) {
         var result;
         var after = function(x) { return x; };
+        if ("typedef" in valDef) {
+          valDef = typesDef[valDef.typedef];
+        }
         switch (valDef["type"]) {
         case "Address":
             result = new Buffer(20);

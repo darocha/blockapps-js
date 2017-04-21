@@ -1,11 +1,17 @@
 var rlp = require('rlp');
 var Crypto = require("./Crypto.js");
 var sha3 = Crypto.keccak256;
-var submitTransaction = require("./Routes.js").submitTransaction;
+var routes = require("./Routes.js");
+var submitTransaction = routes.submitTransaction;
+var submitTransactionList = routes.submitTransactionList;
+var getTX = routes.transaction;
 var Account = require("./Account.js");
 var Address = require("./Address.js");
 var Int = require("./Int.js");
 var errors = require("./errors.js");
+var Promise = require("bluebird");
+var handlers = require("./handlers.js");
+var pollPromise = require("./routes/pollPromise.js");
 
 module.exports = Transaction;
 
@@ -14,9 +20,10 @@ var defaults = {
 };
 
 module.exports.defaults = defaults;
+module.exports.sendList = sendTXList;
 
 // argObj = {
-//   data:, value:, gasPrice:, gasLimit:
+//   data:, value:, gasPrice:, gasLimit:, nonce:
 // }
 function Transaction(argObj) {
     if (!(this instanceof Transaction)) {
@@ -31,6 +38,9 @@ function Transaction(argObj) {
         ["gasPrice", "gasLimit", "value"].forEach(function(prop) {
             tx[prop] = Int((prop in argObj ? argObj : defaults)[prop]);
         });
+        if ("nonce" in argObj) {
+          tx.nonce = Int(argObj.nonce);
+        }
         tx.data = new Buffer(argObj.data || "", "hex");
         tx.to = Address(argObj.to);
     }
@@ -82,6 +92,10 @@ function signTX(privkey) {
     this.r = rsv.r;
     this.s = rsv.s;
     this.v = rsv.v;
+    if (!this.from) {
+      this.from = privkey.toAddress();
+    }
+    return this;
 }
 
 function txHash(full) {
@@ -95,24 +109,66 @@ function txHash(full) {
 }
 
 function sendTX(privKeyFrom, addressTo) {
-    try {
-        privKeyFrom = Crypto.PrivateKey(privKeyFrom);
-        this.from = privKeyFrom.toAddress()
-        if (arguments.length > 1) {
-            this.to = Address(addressTo);
-        }
-    }
-    catch(e) {
-        throw errors.pushTag("Transaction")(e);
+    var tx = this;
+    this.from = Crypto.PrivateKey(privKeyFrom).toAddress();
+    if (addressTo) {
+      tx.to = Address(addressTo);
     }
 
-    return Account(this.from).nonce.
-        then((function(nonce) {
-            this.nonce = nonce;
-            this.sign(privKeyFrom);
-            return submitTransaction(this);
-        }).bind(this)).
-        tagExcepts("Transaction");
+    function setNonce() {
+      if ("nonce" in tx) {
+        return Promise.resolve(tx);
+      }
+      else {
+        return Account(tx.from).nonce.
+          then(function(nonce) {
+            tx.nonce = nonce;
+            return tx;
+          });
+      }
+    }
+
+    return setNonce().
+      call("sign", privKeyFrom).
+      then(submitTransaction).
+      then(setSenderBalanceHandler).
+      tagExcepts("send");
+}
+
+function sendTXList(txList, privKeyFrom) {
+  var addressFrom = Crypto.PrivateKey(privKeyFrom).toAddress();
+  function prepareTX(tx, nonce) {
+    tx.from = addressFrom;
+    tx.nonce = nonce;
+    return tx.sign(privKeyFrom);
+  }
+
+  return Account(addressFrom).nonce.
+    then(function(nonce) { 
+      return txList.map(function(tx, i) { return prepareTX(tx, nonce.plus(i)); });
+    }).
+    then(submitTransactionList).
+    map(setSenderBalanceHandler).
+    tagExcepts("sendList");
+}
+
+function setSenderBalanceHandler(txHandlers) {
+  if (handlers.enable) {
+    Object.defineProperty(txHandlers, "senderBalance", {
+      get: function() {
+        return txHandlers.txHash.
+          then(function(theHash) {
+            return pollPromise(getTX.bind(null, {"hash": theHash,"rejected" : true}));
+          }).
+          get(0).
+          get("from").
+          then(Account).
+          get("balance");
+      },
+      enumerable: true
+    })
+  }
+  return txHandlers;
 }
 
 function txToJSON() {
@@ -160,3 +216,29 @@ function txInt(x, name) {
     }
     return x;
 }
+
+/**
+ * Takes a list of transactions, and a starting nonce, and 
+ * updates all nonces incrementing by one starting with that nonce.
+ * @function transactionListNonce
+ * @param {[Transaction]} txList - list of transactions
+ * @param {Number} startNonce - the Starting Nonce
+ * @returns {[Transaction]}
+ */ 
+
+function transactionListNonce(txList, startNonce) { 
+    return txList.map(function (tx, index) { return tx.txParams({nonce: index+startNonce }) } );
+}
+
+/**
+ * Takes a list of transactions and a private key and signs them all.
+ * @function transactionListSign
+ * @param {[Transaction]} txList - list of transactions
+ * @param {privkey} privkey - the private key
+ * @returns {[Transaction]}
+ */ 
+
+function transactionListSign(txList, privkey) { 
+    return transactionListSign.map(function (tx) { tx.sign(privkey); return tx; });
+} 
+

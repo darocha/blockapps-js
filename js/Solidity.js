@@ -7,6 +7,9 @@ var Int = require("./Int.js");
 var Storage = require("./Storage.js");
 var Promise = require('bluebird');
 var Enum = require('./solidity/enum');
+var Transaction = require('./Transaction.js');
+
+var keccak256 = require("./Crypto.js").keccak256;
 
 var readStorageVar = require("./solidity/storage.js");
 var util = require("./solidity/util.js");
@@ -15,7 +18,10 @@ var solMethod = require("./solidity/functions.js");
 var assignType = require("./types.js").assignType;
 var errors = require("./errors.js");
 
+var handlers = require("./handlers.js");
+
 module.exports = Solidity;
+module.exports.sendList = sendSolTXList;
 
 // string argument as in solc(code, _)
 // object argument as in solc(_, dataObj)
@@ -29,48 +35,53 @@ module.exports = Solidity;
 // If only one object given as "code", collapses to
 // { name : <contract name>, _ :: Solidity }
 function Solidity(x) {
-    try {
-        var code = "";
-        var dataObj = {};
-        switch (typeof x) {
-        case "string" :
-            code = x;
-            break;
-        case "object" :
-            dataObj = x;
-            break;
-        }
-        var solcR = solc(code, dataObj);
-        var xabiR = extabi(code, dataObj);
+  var code = "";
+  var dataObj = {};
+  switch (typeof x) {
+    case "string" :
+      code = x;
+      break;
+    case "object" :
+      dataObj = x;
+      break;
+  }
+
+  return extabi(code, dataObj).
+  then(function(xabiResp){
+    var solcCall = solc(code, xabiResp.dataObj);
+    delete xabiResp.dataObj;
+
+    return solcCall.then(function(solcResp){
+      delete solcResp.dataObj;
+      return { xabiR:xabiResp, solcR:solcResp }
+    });
+  }).
+  then(function(resp){
+    var solcR = resp.solcR;
+    var xabiR= resp.xabiR;
+    var files = {};
+    for (file in solcR) {
+      var contracts = {};
+      for (contract in solcR[file]) {
+        var xabi = xabiR[file][contract];
+        var bin = solcR[file][contract].bin;
+        var binr = solcR[file][contract]["bin-runtime"];
+        contracts[contract] = makeSolidity(xabi, bin, binr, contract);
+      }
+      files[file] = contracts;
+    };
+    // Backwards compatibility
+    if (Object.keys(files).length === 1 &&
+      Object.keys(files)[0] === "src" &&
+      Object.keys(files.src).length == 1)
+    {
+      contract = Object.keys(files.src)[0];
+      files = files.src[contract];
+      files.name = contract;
     }
-    catch(e) {
-        errors.pushTag("Solidity")(e);
-    }
-    return Promise.
-        join(solcR, xabiR, function(solcR, xabiR) {
-            var files = {};
-            for (file in solcR) {
-                var contracts = {};
-                for (contract in solcR[file]) {
-                    var xabi = xabiR[file][contract];
-                    var bin = solcR[file][contract].bin;
-                    contracts[contract] =
-                        makeSolidity(xabi, bin, contract);
-                }
-                files[file] = contracts;
-            };
-            // Backwards compatibility
-            if (Object.keys(files).length === 1 &&
-                Object.keys(files)[0] === "src" &&
-                Object.keys(files.src).length == 1)
-            {
-                contract = Object.keys(files.src)[0];
-                files = files.src[contract];
-                files.name = contract;
-            }
-            return files;
-        }).
-        tagExcepts("Solidity");
+    return files;
+  }).
+  tagExcepts("Solidity");
 }
 Solidity.prototype = {
     "bin" : null,
@@ -86,7 +97,10 @@ Solidity.prototype = {
             var tx = solMethod.
                 call(this, this.xabi.types, constrDef, this.name).
                 apply(Address(null), arguments);
-            tx.callFrom = constrFrom;
+            tx.callFrom = function(privkey) {
+              return this.send(privkey).then(this.setHandler);
+            }
+            tx.setHandler = setContractHandler.bind(tx._solObj);
             return tx;
         }
         catch (e) {
@@ -99,6 +113,8 @@ Solidity.prototype = {
     "detach": function() {
         var copy = {
             "bin": this.bin,
+            "bin-runtime": this["bin-runtime"],
+            "codeHash": this["codeHash"],
             "xabi": this.xabi,
             "name": this.name
         };
@@ -113,13 +129,13 @@ Solidity.attach = function(x) {
         if (typeof x === "string") {
             x = JSON.parse(x);
         }
-        x = assignType(Solidity, x);
+        var result = makeSolidity(x.xabi, x.bin, x['bin-runtime'], x.name);
         if (x.address) {
-            x.address = Address(x.address);
-            return attach(x);
+            result.address = Address(x.address);
+            return attach(result);
         }
         else {
-            return x;
+            return result;
         }
     }
     catch(e) {
@@ -127,7 +143,7 @@ Solidity.attach = function(x) {
     }
 }
 
-function makeSolidity(xabi, bin, contract) {
+function makeSolidity(xabi, bin, binr, contract) {
     var typesDef = xabi.types;
     for (typeName in typesDef) {
         var typeDef = typesDef[typeName];
@@ -135,35 +151,59 @@ function makeSolidity(xabi, bin, contract) {
             typeDef.names = Enum(typeDef.names, typeName);
         }
     }
-
+    // This loop has to be after the one for enums because setTypedefs copies
+    // the result of the previous loop.
+    for (typeName in typesDef) {
+        var typeDef = typesDef[typeName];
+        if (typeDef.type === "Struct") {
+            util.setTypedefs(typesDef, typeDef.fields);
+        }
+    }
     util.setTypedefs(typesDef, xabi.vars);
+
     return assignType(
         Solidity,
         {
             "bin": bin,
+            "bin-runtime": binr,
+            "codeHash": binr ? keccak256(binr) : undefined,
             "xabi": xabi,
             "name": contract
         }
     );
 }
 
-function constrFrom(privkey) {
-    var contract = this._solObj;
-    return this.send(privkey).
+function setContractHandler(txHandlers) {
+  var contract = this;
+  var txResult = handlers.enable ? txHandlers.txResult : txHandlers;
+
+  Object.defineProperty(txHandlers, "contract", {
+    get: function() {
+      return Promise.resolve(txResult).
         get("contractsCreated").
-        tap(function(addrList){
-            if (addrList.length !== 1) {
-                throw new Error("constructor must create a single account");
-            }
-        }).
         get(0).
         then(Address).
         then(function(addr) {
-            contract.address = addr;
+          contract.address = addr;
         }).
         thenReturn(contract).
         then(attach).
-        tagExcepts("Solidity");
+        tagExcepts("contract handler");
+    },
+    enumerable: true
+  })
+  // Use like solObj.construct().callFrom(privkey) to get a dictionary of
+  // handlers: {txHash:, txResult, contract}
+  // Resolving .contract will construct the attached Solidity object (previous
+  // behavior was to construct this in one step)
+  return handlers.enable ? txHandlers : txHandlers.contract;
+}
+
+function sendSolTXList(solTXList, privkey) {
+  return Transaction.sendList(solTXList, privkey).
+    map(function(handlers, i) {
+      return solTXList[i].setHandler(handlers);
+    });
 }
 
 function attach(solObj) {
@@ -217,7 +257,7 @@ function makeSolObject(typeDefs, varDef, storage) {
         var valType = varDef["value"];
         util.setTypedefs(typeDefs, {key: keyType});
         util.setTypedefs(typeDefs, {val: valType});
-        
+
         var result = function(x) {
             try {
                 var arg = util.readInput(typeDefs, keyType, x);
@@ -263,7 +303,7 @@ function makeSolObject(typeDefs, varDef, storage) {
             }
             else {
                 return [Int(varDef.atBytes), varDef.length];
-            }                        
+            }
         }).spread(function(atBytes, lengthBytes) {
             var numEntries = Int(lengthBytes).valueOf();
             var entryDef = varDef["entry"];
@@ -282,7 +322,7 @@ function makeSolObject(typeDefs, varDef, storage) {
                 result.push(makeSolObject(typeDefs, entryCopy, storage));
                 atBytes = entryCopy["atBytes"].plus(entrySize);
             }
-            return Promise.all(result);                
+            return Promise.all(result);
         });
     case "Struct":
         var userName = varDef["typedef"];

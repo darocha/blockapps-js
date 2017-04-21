@@ -1,0 +1,117 @@
+#!/usr/bin/env node
+var Promise = require("bluebird");
+var request = Promise.promisify(require("request"), {multiArgs: true});
+
+var argv = require('minimist')(process.argv.slice(2), {default: 
+  { size: 100
+  , gapMS: 3000
+  , blocURL: "http://localhost:8001"}
+  , strato: "http://localhost:3000"});
+
+var blocURL = argv.blocURL;
+var size = argv.size;
+var gapMS = argv.gapMS;
+
+var timesObj = { arr: [] };
+process.on('SIGQUIT', function() {
+  var times = timesObj.arr;
+  timesObj.arr = [];
+
+  process.stdout.write("\n\n")
+
+  process.stdout.write("Transmission time stats:")
+  doStats(times, "s");
+
+  process.stdout.write("Transmission TPS stats:")
+  doStats(times.map(function(time) { return size/time; }), "tx/s");
+
+  process.stdout.write("Total TPS stats:")
+  doStats(times.map(function(time) { return size/(time + gapMS / 1000); }), "tx/s");
+});
+
+function doStats(nums, unit) {
+  process.stdout.write(" (ignoring the first half of the data)\n")
+  nums = nums.slice(nums.length/2); // Ignore ramp-up measurements;
+
+  var mean = 0;
+  nums.forEach(function(num) { mean += num; });
+  mean = mean / nums.length;
+  process.stdout.write("Mean: " + mean + " " + unit + "\n")
+
+  var variance = 0;
+  nums.forEach(function(num) { var diff = num - mean; variance += diff * diff; });
+  variance = variance / (nums.length - 1);
+  var stdev = Math.sqrt(variance);
+  process.stdout.write("Standard deviation: " + stdev + " " + unit + "\n");
+
+  process.stdout.write("\n");
+}
+
+newUsers()
+  .then(sendToUsers)
+  .then(makeCalls)
+  .spread(timeBatch);
+
+
+function newUsers() {
+  return Promise.mapSeries(["Alex"], createUser);
+
+  function createUser(userName) {
+    return blocRoute("/users/" + userName, { faucet: "1", password: "x" })
+  }
+} 
+
+function timeBatch(alexAddr, calls) {
+  process.stdout.write("# Sending " + size + " transactions\n");
+
+  var time0 = process.hrtime();
+  var sendBatch = sendCalls(alexAddr, calls).
+    then(function() {
+      var durationHR = process.hrtime(time0);
+      var duration = durationHR[0] + durationHR[1]/1e9;
+      timesObj.arr.push(duration);
+      process.stdout.write(duration + "\n");
+    });
+
+  return Promise.delay(gapMS, sendBatch).
+    then(function() { return timeBatch(alexAddr, calls); });
+}
+
+function sendToUsers(users) {
+  var txs = Array(size).fill("deadbeef").map(a => {return {toAddress: a, value: 1}})
+  return blocRoute(
+      "/users/Alex/" + users[0] + "/sendList", 
+      { password: "x", txs: txs }
+    ).
+    then(function(contractAddr) {
+      users.unshift(contractAddr);
+      return users;
+    });
+}
+
+function makeCalls(addrs) {
+
+  var txs = Array(size).fill("deadbeef").map(a => {return {toAddress: a, value: 1}})
+  return [addrs[1], {
+        password: "x",
+        resolve: false,
+        txs: txs
+      }];
+}
+
+function sendCalls(alexAddr, calls) {
+  return blocRoute("/users/Alex/" + alexAddr + "/sendList", calls);
+}
+
+function blocRoute(routePath, postBody) {
+  var requestOptions = {
+    uri: blocURL + routePath,
+    method: "POST",
+    rejectUnauthorized: false,
+    requestCert: true,
+    agent: false,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(postBody)
+  };
+  return request(requestOptions).get(1);
+}

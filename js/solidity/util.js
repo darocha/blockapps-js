@@ -11,6 +11,9 @@ function readInput(typesDef, varDef, x) {
         case "Address":
             return Address(x);
         case "Array":
+            if (typeof x === "string") {
+                x = JSON.parse(x);
+            }
             return x.map(readInput.bind(null, typesDef, varDef["entry"]));
         case "Bool":
             return Boolean(x);
@@ -46,6 +49,9 @@ function readInput(typesDef, varDef, x) {
             return String(x);
         case "Struct":
             var typeDef = types[varDef["typedef"]];
+            if (typeof x === "string") {
+                x = JSON.parse(x);
+            }
             if (typeof x !== "object") {
                 throw errors.tagError(
                     "Solidity",
@@ -77,16 +83,16 @@ function readInput(typesDef, varDef, x) {
 
             return result;
         case "Enum":
-            return varDef.names.get(x);
+            return typesDef[varDef.typedef].names.get(x);
         default:
             throw errors.tagError(
-                "Solidity",
+                "readInput",
                 "cannot read type " + type + " from input"
             );
         }
     }
     catch(e) {
-        throw errors.pushTag("Solidity")(e);
+        throw errors.pushTag("readInput")(e);
     }
 }
 
@@ -151,25 +157,41 @@ function objectSize(varDef, typeDefs) {
 }
 
 function setTypedefs(typesDef, varsDef) {
-    for (var varName in varsDef) {
-        var varDef = varsDef[varName];
-        if ("typedef" in varDef) {
-            var typeName = varDef.typedef;
-            if (typesDef && typeName in typesDef) {
-                var typeDef = typesDef[typeName];
-                varDef.type = typeDef.type;
-                varDef.bytes = typeDef.bytes;
-                if (varDef.type === "Enum") {
-                    varDef.names = typeDef.names;
-                }
-            }
-            else {
-                varDef.type = "Contract";
-                varDef.bytes = 20;
-            }
+  function maybeSetTypedef(varDef) {
+    if ("typedef" in varDef) {
+      var typeName = varDef.typedef;
+      if (typesDef && typeName in typesDef) {
+        var typeDef = typesDef[typeName];
+        varDef.type = typeDef.type;
+        varDef.bytes = typeDef.bytes;
+        if (varDef.type === "Enum") {
+          varDef.names = typeDef.names;
         }
+      }
+      else {
+        varDef.type = "Contract";
+        varDef.bytes = 20;
+      }
     }
- }
+  }
+
+  function recursiveSetTypedefs(varDef) {
+    if (varDef.type === "Array") {
+      recursiveSetTypedefs(varDef.entry) 
+    }
+    else if (varDef.type === "Mapping") {
+      recursiveSetTypedefs(varDef.key);
+      recursiveSetTypedefs(varDef.value);
+    }
+    else {
+      maybeSetTypedef(varDef);
+    }
+  }
+
+  for (var varName in varsDef) {
+    recursiveSetTypedefs(varsDef[varName]);
+  }
+}
 
 function entriesToList(entries) {
     var result = [];
